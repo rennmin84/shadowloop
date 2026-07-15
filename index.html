@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Shadowloop — YouTube shadowing practice</title>
+<meta name="description" content="Paste a YouTube link, pause at a start point, and hit Replay to shadow short clips. Reps and streak tracked automatically.">
+<meta name="theme-color" content="#F2F5F1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body data-playstate="idle">
+
+<div class="topwrap">
+<header class="topbar">
+  <div class="brand">Shadow<span>loop</span></div>
+  <nav class="tabs" aria-label="Main navigation">
+    <button id="nav-home" class="tab active">Home</button>
+    <button id="nav-clips" class="tab">Clips</button>
+    <button id="nav-practice" class="tab">Practice</button>
+  </nav>
+</header>
+</div>
+
+<!-- ============ Home ============ -->
+<main id="view-home" class="view">
+
+  <!-- hero: today's mission + add a video -->
+  <section class="hero" id="hero-card">
+    <div class="hero-main">
+      <p class="eyebrow">Today's practice</p>
+      <h1 class="hero-title">What are you shadowing today?</h1>
+      <div class="hero-row">
+        <input id="url-input-hero" type="url" inputmode="url" placeholder="Paste a YouTube link" autocomplete="off">
+        <button id="url-load-hero" class="btn accent hero-go">Load</button>
+      </div>
+      <p class="hero-hint">Load a video → pause at a line → hit Replay and speak along.</p>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-ring">
+        <svg id="progress-ring" viewBox="0 0 96 96" width="84" height="84" aria-hidden="true">
+          <circle class="ring-bg" cx="48" cy="48" r="40"/>
+          <circle id="ring-fg" class="ring-fg" cx="48" cy="48" r="40"/>
+        </svg>
+        <div class="ring-center"><b id="today-reps">0</b><span>of <span id="today-goal">10</span></span></div>
+      </div>
+      <div class="hero-stat-sub">reps today</div>
+      <div class="hero-streak">🔥 <b id="streak-days">0</b><span class="dim"> day streak</span> <span id="freeze-badge" class="freeze hidden">❄️×<span id="freeze-count">0</span></span></div>
+    </div>
+  </section>
+
+  <!-- today's review queue (spaced repetition) -->
+  <section id="review-section" class="home-sec hidden">
+    <p class="eyebrow">Review queue</p>
+    <div class="card review-card">
+      <div class="review-badge" id="review-badge"><b id="due-count">0</b><span id="due-word">due</span></div>
+      <div class="review-info">
+        <div class="review-title" id="review-title">Today's review</div>
+        <div class="review-sub dim small" id="review-sub"></div>
+      </div>
+      <button id="start-review" class="btn accent review-go">Start</button>
+    </div>
+  </section>
+
+  <!-- getting started (only when no data yet) -->
+  <section id="getting-started" class="home-sec hidden">
+    <div class="steps-strip card">
+      <div class="step"><span class="step-dot">1</span><p>Paste a link above and load the video</p></div>
+      <div class="step"><span class="step-dot">2</span><p>Pause at a line you want to master — the start point is captured for you</p></div>
+      <div class="step"><span class="step-dot">3</span><p>Save the clip, then hit Replay and speak along — every rep counts</p></div>
+    </div>
+  </section>
+
+  <!-- progress heatmap -->
+  <section id="progress-section" class="home-sec hidden">
+    <p class="eyebrow">Progress</p>
+    <div class="card heatmap-card">
+      <div class="card-head">
+        <span>Practice heatmap</span>
+        <div class="hm-views">
+          <button class="hm-view active" data-view="m1">1M</button>
+          <button class="hm-view" data-view="m3">3M</button>
+          <button class="hm-view" data-view="y1">1Y</button>
+        </div>
+      </div>
+      <div id="hm-stats" class="hm-stats"></div>
+      <div class="heatmap-scroll"><div id="heatmap" class="heatmap"></div></div>
+      <div class="hm-legend-row">
+        <span class="legend">Less <i data-lv="0"></i><i data-lv="1"></i><i data-lv="2"></i><i data-lv="3"></i><i data-lv="4"></i> More · <i class="dot-demo"></i> new clip</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- settings -->
+  <section class="card settings-card home-sec">
+    <div class="setting-row">
+      <label for="goal-input">Daily goal</label>
+      <div><input id="goal-input" type="number" min="1" max="500" step="1"> <span class="dim">reps</span></div>
+    </div>
+    <div class="setting-row">
+      <label for="sync-url">Cloud sync</label>
+      <button id="sync-now" class="btn">Sync now</button>
+    </div>
+    <input id="sync-url" type="url" inputmode="url" placeholder="Paste your Google Apps Script web app URL (see SYNC-SETUP.md)" autocomplete="off">
+    <p id="sync-status" class="dim small sync-status"></p>
+    <div class="setting-row">
+      <label>Backup</label>
+      <div class="btn-group">
+        <button id="export-btn" class="btn">Export JSON</button>
+        <button id="import-btn" class="btn">Import JSON</button>
+        <input id="import-file" type="file" accept="application/json,.json" class="hidden">
+      </div>
+    </div>
+    <p class="dim small">Data lives in this browser. Turn on cloud sync to share it across your computer and phone, or use JSON backup for a one-off transfer.</p>
+  </section>
+</main>
+
+<!-- ============ Clips ============ -->
+<main id="view-clips" class="view hidden">
+  <div class="clips-layout">
+    <aside class="folders-pane card">
+      <div class="pane-head">
+        <span>Folders</span>
+        <select id="folder-sort" class="mini-select" title="Sort folders">
+          <option value="recent">Recent</option>
+          <option value="name">A–Z</option>
+          <option value="count">Count</option>
+        </select>
+      </div>
+      <ul id="folder-list" class="folder-list"></ul>
+    </aside>
+    <section class="clips-pane card">
+      <div class="pane-head">
+        <span id="clips-pane-title">All clips</span>
+        <select id="clip-sort" class="mini-select" title="Sort clips">
+          <option value="recent">Recent</option>
+          <option value="reps">Reps</option>
+          <option value="name">A–Z</option>
+        </select>
+      </div>
+      <ul id="segment-list" class="segment-list"></ul>
+      <p id="segment-list-empty" class="list-empty hidden">No clips here yet. Load a video, set a start, then hit Save.</p>
+    </section>
+  </div>
+</main>
+
+<!-- ============ Practice ============ -->
+<main id="view-practice" class="view hidden">
+  <div class="practice-layout">
+    <div id="queue-bar" class="queue-bar hidden">
+      <span class="queue-chip">Review</span>
+      <span id="queue-progress" class="queue-progress">1 / 5</span>
+      <div id="queue-dots" class="queue-dots"></div>
+      <span id="queue-rep" class="queue-rep dim small"></span>
+      <button id="queue-skip" class="text-btn" title="Skip to the next due clip">Skip ›</button>
+      <button id="queue-exit" class="text-btn queue-exit" title="Exit review">✕</button>
+    </div>
+
+    <div id="player-wrap" class="player-wrap">
+      <div id="player"></div>
+      <div id="player-placeholder" class="player-placeholder">
+        <p>No video loaded</p>
+        <div class="url-row">
+          <input id="url-input-practice" type="url" inputmode="url" placeholder="Paste a YouTube link…" autocomplete="off">
+          <button id="url-load-practice" class="btn accent">Load</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="transport-row">
+      <button id="skip-back" class="btn skip-btn" title="Back 10 seconds (J)">« 10s</button>
+      <p class="dim small transport-hint">Pause anywhere — the start point follows · J / L to jump</p>
+      <button id="skip-fwd" class="btn skip-btn" title="Forward 10 seconds (L)">10s »</button>
+    </div>
+
+    <div class="video-head">
+      <div id="video-title" class="video-title"></div>
+      <button id="new-video-toggle" class="text-btn">＋ New video</button>
+    </div>
+    <div id="new-video-row" class="url-row hidden">
+      <input id="url-input-practice2" type="url" inputmode="url" placeholder="Paste a YouTube link…" autocomplete="off">
+      <button id="url-load-practice2" class="btn accent">Load</button>
+    </div>
+
+    <div class="clip-controls">
+      <div class="clip-group" id="start-group">
+        <span class="len-label">Start</span>
+        <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
+        <div class="nudges">
+          <button class="btn nudge" data-d="-1">−1</button>
+          <button class="btn nudge" data-d="-0.5">−0.5</button>
+          <button class="btn nudge" data-d="0.5">+0.5</button>
+          <button class="btn nudge" data-d="1">+1</button>
+        </div>
+        <button class="btn ghost preview-btn" title="Preview around the start point">Preview</button>
+      </div>
+      <div class="clip-group" id="length-group">
+        <span class="len-label">Length</span>
+        <button class="btn len-btn" data-d="-0.5">−0.5s</button>
+        <span id="len-val" class="len-val">2.0s</span>
+        <button class="btn len-btn" data-d="0.5">+0.5s</button>
+        <span class="dim small len-hint">clip = start → start + length</span>
+      </div>
+    </div>
+
+    <!-- echo: record yourself after each replay, then compare -->
+    <div id="echo-bar" class="echo-bar" data-echo="off">
+      <button id="mic-toggle" class="mic-btn" title="Record my voice after each replay">🎙</button>
+      <div class="echo-body">
+        <div id="echo-status" class="echo-status">Mic off — turn it on to hear yourself vs. the original</div>
+        <div id="echo-actions" class="echo-actions hidden">
+          <button id="play-orig" class="btn chip-btn" title="Play the original clip">▶ Original</button>
+          <button id="play-mine" class="btn chip-btn" title="Play your last take">▶ My voice</button>
+          <button id="play-ab" class="btn chip-btn ab-btn" title="Original, then your take right after">⇄ A/B</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom control bar -->
+  <div class="control-bar">
+    <button id="replay-btn" class="replay-btn" title="Replay clip (R / Enter)">
+      <span class="replay-icon">▶</span> <span id="replay-label">Replay</span><span id="rep-count" class="rep-count hidden"> · <b id="rep-count-num">0</b></span>
+    </button>
+    <button id="save-btn" class="btn ctl-btn" title="Save clip">Save</button>
+  </div>
+</main>
+
+<!-- ============ Save clip modal ============ -->
+<div id="modal-backdrop" class="modal-backdrop hidden">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h3 id="modal-title">Save clip</h3>
+    <img id="modal-thumb" class="modal-thumb hidden" alt="Video thumbnail">
+    <div class="field"><label for="seg-label">Name</label><input id="seg-label" maxlength="120" autocomplete="off"></div>
+    <div class="field"><label for="seg-note">Note</label><textarea id="seg-note" rows="3" placeholder="Pronunciation, linking, new words…"></textarea></div>
+    <div class="field"><label for="seg-folder">Folder</label><select id="seg-folder"></select></div>
+    <div class="field hidden" id="new-folder-field"><label for="seg-folder-new">New folder name</label><input id="seg-folder-new" maxlength="60" autocomplete="off" placeholder="e.g. Interview, Medical, Linking"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="btn">Cancel</button>
+      <button id="modal-save" class="btn accent">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap" class="toast-wrap" aria-live="polite"></div>
+
+<script src="./app.js"></script>
+</body>
+</html>

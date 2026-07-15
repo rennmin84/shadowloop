@@ -1,0 +1,15 @@
+{
+  "name": "Shadowloop — YouTube shadowing practice",
+  "short_name": "Shadowloop",
+  "description": "Paste a YouTube link, mark a start point, and hit Replay to shadow short clips. Reps and streak tracked automatically.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F5F1",
+  "theme_color": "#F2F5F1",
+  "lang": "en",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
