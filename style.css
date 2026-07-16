@@ -154,15 +154,48 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   .hero-stat-sub{display:none;}
 }
 
-/* ---------- daily spark quote ---------- */
-.quote-card{position:relative; padding:15px 18px 13px 54px; overflow:hidden;}
-.quote-card::before{
-  content:"\201C"; position:absolute; left:14px; top:0;
-  font-family:var(--font-display); font-size:56px; line-height:1.15;
-  color:var(--accent); opacity:.3; pointer-events:none;
+/* ---------- daily spark quote ----------
+   The one dark card on the page: night-green ink, the signature loop
+   ring, and a glowing emerald quote mark. A deliberate counterweight
+   to the light hero above it. */
+.quote-card{
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(47,206,154,.18) 0%, transparent 55%),
+    linear-gradient(150deg, #16241C 0%, #0C1210 100%);
+  border:1px solid #24352B;
+  border-radius:var(--radius-lg);
+  padding:20px 24px 18px;
+  box-shadow:var(--shadow-lift);
 }
-.quote-text{margin:0; font-size:14.5px; line-height:1.55; font-weight:500;}
-.quote-author{margin:6px 0 0; color:var(--text2); font-size:12px; font-weight:600;}
+.quote-card::before{
+  /* signature: the loop ring */
+  content:""; position:absolute; right:-48px; top:-48px; width:150px; height:150px;
+  border:12px solid #2FCE9A; border-radius:50%; opacity:.16; pointer-events:none;
+}
+.quote-card::after{
+  /* oversized glowing quote mark */
+  content:"\201C"; position:absolute; left:12px; top:-16px;
+  font-family:var(--font-display); font-size:100px; font-weight:800; line-height:1;
+  color:#2FCE9A; opacity:.14; pointer-events:none;
+  text-shadow:0 0 24px rgba(47,206,154,.55);
+}
+.quote-eyebrow{
+  margin:0 0 10px; font-family:var(--font-display);
+  font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:#2FCE9A;
+}
+.quote-text{
+  position:relative; margin:0; color:#EDF5EF;
+  font-family:var(--font-display); font-weight:700; letter-spacing:-.015em;
+  font-size:clamp(17px, 3.2vw, 21px); line-height:1.35;
+  text-wrap:balance;
+}
+.quote-text.long{font-size:clamp(14.5px, 2.8vw, 17px); line-height:1.5; font-weight:600;}
+.quote-author{
+  position:relative; margin:12px 0 0; text-align:right;
+  color:#8FA697; font-size:12.5px; font-weight:600; letter-spacing:.02em;
+}
 
 /* ---------- review queue card ---------- */
 .review-card{display:flex; align-items:center; gap:14px;}

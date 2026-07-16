@@ -1203,7 +1203,9 @@ function renderQuote(){
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   const q = QUOTES[h % QUOTES.length];
-  $('#quote-text').textContent = '“' + q.t + '”';
+  const txt = $('#quote-text');
+  txt.textContent = q.t;
+  txt.classList.toggle('long', q.t.length > 90);
   $('#quote-author').textContent = '— ' + q.a;
 }
 
