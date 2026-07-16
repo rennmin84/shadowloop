@@ -92,6 +92,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   text-transform:uppercase; color:var(--text2); margin:0 0 8px 2px;
 }
 .home-sec{margin-top:26px;}
+#quote-section{margin-bottom:18px;}
 
 /* load-in rise (once, subtle) */
 @keyframes rise{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
@@ -155,46 +156,40 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 
 /* ---------- daily spark quote ----------
-   The one dark card on the page: night-green ink, the signature loop
-   ring, and a glowing emerald quote mark. A deliberate counterweight
-   to the light hero above it. */
+   A light card that opens the page: a thick emerald accent rail on the
+   left and an oversized tinted quote mark behind big Archivo text. */
 .quote-card{
   position:relative; overflow:hidden;
   background:
-    radial-gradient(120% 160% at 100% 0%, rgba(47,206,154,.18) 0%, transparent 55%),
-    linear-gradient(150deg, #16241C 0%, #0C1210 100%);
-  border:1px solid #24352B;
+    radial-gradient(130% 140% at 0% 0%, var(--accent-tint) 0%, transparent 48%),
+    var(--surface);
+  border:1px solid var(--border);
+  border-left:4px solid var(--accent);
   border-radius:var(--radius-lg);
-  padding:20px 24px 18px;
-  box-shadow:var(--shadow-lift);
-}
-.quote-card::before{
-  /* signature: the loop ring */
-  content:""; position:absolute; right:-48px; top:-48px; width:150px; height:150px;
-  border:12px solid #2FCE9A; border-radius:50%; opacity:.16; pointer-events:none;
+  padding:18px 24px 16px 26px;
+  box-shadow:var(--shadow);
 }
 .quote-card::after{
-  /* oversized glowing quote mark */
-  content:"\201C"; position:absolute; left:12px; top:-16px;
-  font-family:var(--font-display); font-size:100px; font-weight:800; line-height:1;
-  color:#2FCE9A; opacity:.14; pointer-events:none;
-  text-shadow:0 0 24px rgba(47,206,154,.55);
+  /* oversized tinted quote mark, sunk behind the text */
+  content:"\201C"; position:absolute; right:16px; top:-6px;
+  font-family:var(--font-display); font-size:110px; font-weight:800; line-height:1;
+  color:var(--accent); opacity:.10; pointer-events:none;
 }
 .quote-eyebrow{
-  margin:0 0 10px; font-family:var(--font-display);
+  margin:0 0 8px; font-family:var(--font-display);
   font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
-  color:#2FCE9A;
+  color:var(--accent-deep);
 }
 .quote-text{
-  position:relative; margin:0; color:#EDF5EF;
+  position:relative; margin:0; color:var(--text);
   font-family:var(--font-display); font-weight:700; letter-spacing:-.015em;
   font-size:clamp(17px, 3.2vw, 21px); line-height:1.35;
   text-wrap:balance;
 }
 .quote-text.long{font-size:clamp(14.5px, 2.8vw, 17px); line-height:1.5; font-weight:600;}
 .quote-author{
-  position:relative; margin:12px 0 0; text-align:right;
-  color:#8FA697; font-size:12.5px; font-weight:600; letter-spacing:.02em;
+  position:relative; margin:11px 0 0; text-align:right;
+  color:var(--text2); font-size:12.5px; font-weight:600; letter-spacing:.02em;
 }
 
 /* ---------- review queue card ---------- */
