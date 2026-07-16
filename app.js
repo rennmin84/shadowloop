@@ -1445,13 +1445,27 @@ async function syncNow(silent){
   }
 }
 
-// flush a pending push when the tab is closed / backgrounded
-window.addEventListener('pagehide', () => {
-  if (syncTimer && settings.syncUrl && navigator.sendBeacon){
-    clearTimeout(syncTimer); syncTimer = null;
+// push any pending change immediately (used when leaving the tab/app)
+function flushSync(){
+  if (!settings.syncUrl || !navigator.sendBeacon) return;
+  clearTimeout(syncTimer); syncTimer = null;
+  try {
     navigator.sendBeacon(settings.syncUrl, new Blob([buildSyncPayload()], { type: 'text/plain;charset=utf-8' }));
+  } catch (e) {}
+}
+
+// Fully automatic hand-off between devices — no manual button needed:
+//   • leaving this device (tab hidden / closed): flush the latest up to the cloud
+//   • returning to this device: pull whatever the other device left behind
+document.addEventListener('visibilitychange', () => {
+  if (!settings.syncUrl) return;
+  if (document.visibilityState === 'hidden'){
+    if (syncTimer) flushSync();       // only if there are unpushed changes
+  } else {
+    syncNow(true);                    // returning: grab the newest first
   }
 });
+window.addEventListener('pagehide', () => { if (syncTimer) flushSync(); });
 
 /* ---------------- view switching ---------------- */
 function showView(which){
