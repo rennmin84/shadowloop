@@ -1413,12 +1413,12 @@ function buildSyncPayload(){
   });
 }
 
-async function syncNow(silent){
+async function syncNow(silent, pullOnly){
   const url = settings.syncUrl;
   if (!url){ if (!silent) toast('Paste your Apps Script URL first'); return; }
   if (syncing){ syncQueued = true; return; }
   syncing = true;
-  setSyncStatus('Syncing…');
+  if (!pullOnly) setSyncStatus('Syncing…');
   try {
     const res = await fetch(url);
     const remote = await res.json();
@@ -1426,18 +1426,22 @@ async function syncNow(silent){
       applyingRemote = true;
       try { mergeData(remote.data); } finally { applyingRemote = false; }
     }
-    const res2 = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain avoids a CORS preflight
-      body: buildSyncPayload(),
-    });
-    const out = await res2.json();
-    if (!out || !out.ok) throw new Error((out && out.error) || 'sync failed');
+    // periodic refresh only pulls; local edits are pushed by the 5s debounce
+    // and when leaving the tab, so we skip re-writing the sheet every minute.
+    if (!pullOnly){
+      const res2 = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain avoids a CORS preflight
+        body: buildSyncPayload(),
+      });
+      const out = await res2.json();
+      if (!out || !out.ok) throw new Error((out && out.error) || 'sync failed');
+    }
     settings.lastSyncAt = Date.now(); saveSettings();
     updateSyncStatus();
     if (!silent) toast('Synced ✓');
   } catch (e) {
-    setSyncStatus('Sync failed — check the URL and that the deployment allows "Anyone".');
+    if (!pullOnly) setSyncStatus('Sync failed — check the URL and that the deployment allows "Anyone".');
     if (!silent) toast('Sync failed');
   } finally {
     syncing = false;
@@ -1466,6 +1470,14 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 window.addEventListener('pagehide', () => { if (syncTimer) flushSync(); });
+
+// While the app stays open and in the foreground, pull the cloud copy every
+// 60s so a device you never close still picks up changes from the other one.
+setInterval(() => {
+  if (settings.syncUrl && document.visibilityState === 'visible' && !syncing){
+    syncNow(true, true);   // silent, pull-only
+  }
+}, 60000);
 
 /* ---------------- view switching ---------------- */
 function showView(which){
