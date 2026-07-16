@@ -67,8 +67,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .tabs{display:flex; gap:2px; justify-self:center; background:var(--surface2); border-radius:99px; padding:3px;}
 .tab{border:none; background:transparent; color:var(--text2); padding:6px 14px; border-radius:99px; font-weight:600; font-size:13.5px;}
 .tab.active{background:var(--surface); color:var(--text); box-shadow:var(--shadow);}
+.icon-btn{
+  justify-self:end; border:none; background:transparent; font-size:17px;
+  padding:6px 9px; border-radius:10px; color:var(--text2); line-height:1;
+}
+.icon-btn:hover{background:var(--surface2);}
+.icon-btn.active{background:var(--accent-tint); color:var(--accent-deep);}
 @media (max-width: 480px){
-  .topbar{grid-template-columns:auto 1fr; gap:8px; padding-left:12px; padding-right:12px;}
+  .topbar{grid-template-columns:auto 1fr auto; gap:8px; padding-left:12px; padding-right:12px;}
   .tabs{justify-self:end;}
   .tab{padding:6px 10px; font-size:13px;}
   .brand{font-size:16px;}
@@ -148,6 +154,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   .hero-stat-sub{display:none;}
 }
 
+/* ---------- daily spark quote ---------- */
+.quote-card{position:relative; padding:15px 18px 13px 54px; overflow:hidden;}
+.quote-card::before{
+  content:"\201C"; position:absolute; left:14px; top:0;
+  font-family:var(--font-display); font-size:56px; line-height:1.15;
+  color:var(--accent); opacity:.3; pointer-events:none;
+}
+.quote-text{margin:0; font-size:14.5px; line-height:1.55; font-weight:500;}
+.quote-author{margin:6px 0 0; color:var(--text2); font-size:12px; font-weight:600;}
+
 /* ---------- review queue card ---------- */
 .review-card{display:flex; align-items:center; gap:14px;}
 .review-badge{
@@ -174,6 +190,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   background:var(--accent-tint); color:var(--accent-deep);
   font-family:var(--font-display); font-weight:800; font-size:13px;
 }
+.steps-note{margin:2px 0 0; padding-top:12px; border-top:1px dashed var(--border);}
 
 /* ---------- heatmap ---------- */
 .hm-views{display:flex; gap:2px; background:var(--surface2); border-radius:99px; padding:2px;}

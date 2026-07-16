@@ -25,6 +25,7 @@
     <button id="nav-clips" class="tab">Clips</button>
     <button id="nav-practice" class="tab">Practice</button>
   </nav>
+  <button id="nav-settings" class="icon-btn" title="Settings">⚙</button>
 </header>
 </div>
 
@@ -55,6 +56,14 @@
     </div>
   </section>
 
+  <!-- daily spark -->
+  <section id="quote-section" class="home-sec">
+    <div class="card quote-card">
+      <p id="quote-text" class="quote-text"></p>
+      <p id="quote-author" class="quote-author"></p>
+    </div>
+  </section>
+
   <!-- today's review queue (spaced repetition) -->
   <section id="review-section" class="home-sec hidden">
     <p class="eyebrow">Review queue</p>
@@ -74,6 +83,7 @@
       <div class="step"><span class="step-dot">1</span><p>Paste a link above and load the video</p></div>
       <div class="step"><span class="step-dot">2</span><p>Pause at a line you want to master — the start point is captured for you</p></div>
       <div class="step"><span class="step-dot">3</span><p>Save the clip, then hit Replay and speak along — every rep counts</p></div>
+      <p class="dim small steps-note">Practiced on another device before? Open Settings (⚙ top right) to import a backup or turn on cloud sync — your streak and clips will come right back.</p>
     </div>
   </section>
 
@@ -97,28 +107,6 @@
     </div>
   </section>
 
-  <!-- settings -->
-  <section class="card settings-card home-sec">
-    <div class="setting-row">
-      <label for="goal-input">Daily goal</label>
-      <div><input id="goal-input" type="number" min="1" max="500" step="1"> <span class="dim">reps</span></div>
-    </div>
-    <div class="setting-row">
-      <label for="sync-url">Cloud sync</label>
-      <button id="sync-now" class="btn">Sync now</button>
-    </div>
-    <input id="sync-url" type="url" inputmode="url" placeholder="Paste your Google Apps Script web app URL (see SYNC-SETUP.md)" autocomplete="off">
-    <p id="sync-status" class="dim small sync-status"></p>
-    <div class="setting-row">
-      <label>Backup</label>
-      <div class="btn-group">
-        <button id="export-btn" class="btn">Export JSON</button>
-        <button id="import-btn" class="btn">Import JSON</button>
-        <input id="import-file" type="file" accept="application/json,.json" class="hidden">
-      </div>
-    </div>
-    <p class="dim small">Data lives in this browser. Turn on cloud sync to share it across your computer and phone, or use JSON backup for a one-off transfer.</p>
-  </section>
 </main>
 
 <!-- ============ Clips ============ -->
@@ -230,6 +218,32 @@
     </button>
     <button id="save-btn" class="btn ctl-btn" title="Save clip">Save</button>
   </div>
+</main>
+
+<!-- ============ Settings ============ -->
+<main id="view-settings" class="view hidden">
+  <p class="eyebrow">Settings</p>
+  <section class="card settings-card">
+    <div class="setting-row">
+      <label for="goal-input">Daily goal</label>
+      <div><input id="goal-input" type="number" min="1" max="500" step="1"> <span class="dim">reps</span></div>
+    </div>
+    <div class="setting-row">
+      <label for="sync-url">Cloud sync</label>
+      <button id="sync-now" class="btn">Sync now</button>
+    </div>
+    <input id="sync-url" type="url" inputmode="url" placeholder="Paste your Google Apps Script web app URL (see SYNC-SETUP.md)" autocomplete="off">
+    <p id="sync-status" class="dim small sync-status"></p>
+    <div class="setting-row">
+      <label>Backup</label>
+      <div class="btn-group">
+        <button id="export-btn" class="btn">Export JSON</button>
+        <button id="import-btn" class="btn">Import JSON</button>
+        <input id="import-file" type="file" accept="application/json,.json" class="hidden">
+      </div>
+    </div>
+    <p class="dim small">Data lives in this browser. Turn on cloud sync to share it across your computer and phone, or use JSON backup for a one-off transfer.</p>
+  </section>
 </main>
 
 <!-- ============ Save clip modal ============ -->

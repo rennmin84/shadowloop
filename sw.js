@@ -1,5 +1,5 @@
 /* Shadowloop service worker — cache app shell,cache app shell; offline access to lists and stats (video playback needs a connection) */
-const CACHE = 'shadowloop-shell-v5';
+const CACHE = 'shadowloop-shell-v6';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

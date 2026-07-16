@@ -1171,6 +1171,42 @@ function renderReviewCard(){
   }
 }
 
+/* ---------------- daily spark ----------------
+   One quote per day, picked deterministically from the date so it
+   stays the same all day and changes tomorrow. */
+const QUOTES = [
+  { t: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.', a: 'Will Durant' },
+  { t: 'Repetition is the mother of learning.', a: 'Russian proverb' },
+  { t: 'Little by little, a little becomes a lot.', a: 'Tanzanian proverb' },
+  { t: 'The limits of my language mean the limits of my world.', a: 'Ludwig Wittgenstein' },
+  { t: 'To have another language is to possess a second soul.', a: 'Charlemagne' },
+  { t: 'A different language is a different vision of life.', a: 'Federico Fellini' },
+  { t: 'Success is the sum of small efforts, repeated day in and day out.', a: 'Robert Collier' },
+  { t: "You don't have to be great to start, but you have to start to be great.", a: 'Zig Ziglar' },
+  { t: 'The expert in anything was once a beginner.', a: 'Helen Hayes' },
+  { t: "Don't watch the clock; do what it does. Keep going.", a: 'Sam Levenson' },
+  { t: "It always seems impossible until it's done.", a: 'Nelson Mandela' },
+  { t: 'Motivation is what gets you started. Habit is what keeps you going.', a: 'Jim Ryun' },
+  { t: 'The secret of getting ahead is getting started.', a: 'Mark Twain' },
+  { t: 'Great things are done by a series of small things brought together.', a: 'Vincent van Gogh' },
+  { t: 'Every artist was first an amateur.', a: 'Ralph Waldo Emerson' },
+  { t: 'If you talk to a man in a language he understands, that goes to his head. If you talk to him in his language, that goes to his heart.', a: 'Nelson Mandela' },
+  { t: 'Learning another language is not only learning different words for the same things, but learning another way to think about things.', a: 'Flora Lewis' },
+  { t: 'One language sets you in a corridor for life. Two languages open every door along the way.', a: 'Frank Smith' },
+  { t: 'Language is the road map of a culture.', a: 'Rita Mae Brown' },
+  { t: 'Do something today that your future self will thank you for.', a: 'Sean Patrick Flanery' },
+  { t: 'You are always a student, never a master. You have to keep moving forward.', a: 'Conrad Hall' },
+  { t: 'Practice like you have never won. Perform like you have never lost.', a: 'Bernard F. Asuncion' },
+];
+function renderQuote(){
+  const s = todayStr();
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const q = QUOTES[h % QUOTES.length];
+  $('#quote-text').textContent = '“' + q.t + '”';
+  $('#quote-author').textContent = '— ' + q.a;
+}
+
 /* ---------------- dashboard: progress, streak, heatmap ---------------- */
 function computeStreak(){
   const goal = settings.dailyGoal;
@@ -1225,6 +1261,7 @@ function renderDashboard(){
   $('#progress-section').classList.toggle('hidden', isEmpty);
   if (!isEmpty) renderHeatmap();
   renderReviewCard();
+  renderQuote();
 }
 
 function renderClips(){
@@ -1419,12 +1456,15 @@ function showView(which){
   $('#view-home').classList.toggle('hidden', which !== 'home');
   $('#view-clips').classList.toggle('hidden', which !== 'clips');
   $('#view-practice').classList.toggle('hidden', which !== 'practice');
+  $('#view-settings').classList.toggle('hidden', which !== 'settings');
   $('#nav-home').classList.toggle('active', which === 'home');
   $('#nav-clips').classList.toggle('active', which === 'clips');
   $('#nav-practice').classList.toggle('active', which === 'practice');
+  $('#nav-settings').classList.toggle('active', which === 'settings');
   document.body.classList.toggle('on-practice', which === 'practice');
   if (which === 'home') renderDashboard();
   else if (which === 'clips') renderClips();
+  else if (which === 'settings') updateSyncStatus();
 }
 
 /* ---------------- event wiring ---------------- */
@@ -1452,6 +1492,7 @@ $('#new-video-toggle').addEventListener('click', () => {
 $('#nav-home').addEventListener('click', () => showView('home'));
 $('#nav-clips').addEventListener('click', () => showView('clips'));
 $('#nav-practice').addEventListener('click', () => showView('practice'));
+$('#nav-settings').addEventListener('click', () => showView('settings'));
 
 // clips sorting
 $('#folder-sort').addEventListener('change', e => { state.folderSort = e.target.value; renderSegmentList(); });
