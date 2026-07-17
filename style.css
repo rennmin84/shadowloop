@@ -283,7 +283,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .folder-row .fr-meta{font-size:11.5px; color:var(--text2); flex-shrink:0; font-variant-numeric:tabular-nums;}
 .folder-row.active .fr-meta{color:var(--accent-deep); opacity:.85;}
 
+/* status filter chips */
+.chip-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+.fchip{
+  border:1px solid var(--border); background:var(--surface2); color:var(--text2);
+  border-radius:99px; padding:5px 12px; font-size:12.5px; font-weight:600;
+  font-variant-numeric:tabular-nums;
+}
+.fchip b{font-weight:700; margin-left:1px;}
+.fchip.active{
+  background:var(--accent-tint); color:var(--accent-deep);
+  border-color:color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
 .segment-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+/* at-a-glance practice status: green = done today, amber = due, grey = never practiced */
+.seg-status{flex-shrink:0; width:9px; height:9px; border-radius:50%;}
+.seg-status[data-st="done"]{background:var(--accent);}
+.seg-status[data-st="due"]{background:var(--accent-wait);}
+.seg-status[data-st="new"]{background:var(--text2); opacity:.4;}
+.seg-status[data-st="ok"]{background:transparent; box-shadow:inset 0 0 0 1.5px var(--border);}
 .seg-item{
   position:relative; display:flex; align-items:center; gap:12px; padding:10px;
   border:1px solid var(--border); border-radius:13px; cursor:pointer; background:var(--surface);
@@ -354,11 +373,46 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .text-btn{border:none; background:none; color:var(--accent); font-weight:700; font-size:13.5px; padding:5px 8px; border-radius:8px;}
 .text-btn:hover{background:var(--accent-tint);}
 
-/* clip controls: start + length */
-.clip-controls{display:flex; flex-direction:column; gap:10px;}
-.clip-group{
-  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
-  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:11px; box-shadow:var(--shadow);
+/* clip card: timeline strip + start + length in one place */
+.clip-controls{
+  display:flex; flex-direction:column; gap:12px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px; box-shadow:var(--shadow);
+}
+.clip-group{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+.clip-hint{margin:0; padding:2px 2px 0;}
+
+/* visual timeline: a zoomed window around the clip */
+.clip-strip{padding:2px 2px 0;}
+.strip-track{
+  position:relative; height:36px; border-radius:10px;
+  background:var(--surface2); border:1px solid var(--border);
+  touch-action:none; cursor:pointer; user-select:none; -webkit-user-select:none;
+}
+.strip-range{
+  position:absolute; top:-1px; bottom:-1px;
+  background:var(--accent-soft); border:2px solid var(--accent); border-radius:10px;
+  cursor:grab;
+}
+.strip-range:active{cursor:grabbing;}
+.strip-handle{
+  position:absolute; top:50%; left:0; width:14px; height:26px;
+  transform:translate(-50%,-50%);
+  background:var(--accent); border-radius:5px; cursor:ew-resize;
+  box-shadow:0 1px 3px rgba(23,34,29,.25);
+}
+.strip-handle::after{
+  content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:2px; height:12px; border-radius:1px; background:rgba(255,255,255,.75);
+}
+.strip-handle[data-h="b"]{left:100%;}
+.strip-playhead{
+  position:absolute; top:-4px; bottom:-4px; width:2px; margin-left:-1px;
+  background:var(--text); opacity:.6; border-radius:1px; pointer-events:none;
+}
+.strip-times{
+  display:flex; justify-content:space-between; gap:8px; margin-top:5px;
+  color:var(--text2); font-size:11px; font-variant-numeric:tabular-nums;
 }
 .len-label{
   font-family:var(--font-display); font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
@@ -382,14 +436,19 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   padding:10px 12px; box-shadow:var(--shadow);
   transition:border-color .2s;
 }
-.mic-btn{
-  flex-shrink:0; width:42px; height:42px; border-radius:50%;
-  border:1.5px solid var(--border); background:var(--surface2); font-size:17px;
-  display:grid; place-items:center; line-height:1;
-  transition:background .15s, border-color .15s, transform .15s;
+.mic-switch{
+  flex-shrink:0; position:relative; width:58px; height:32px; border-radius:99px;
+  border:1.5px solid var(--border); background:var(--surface2); padding:0;
+  transition:background .18s, border-color .18s;
 }
-.mic-btn:hover{transform:scale(1.05);}
-.mic-btn.on{background:var(--accent); border-color:var(--accent);}
+.mic-knob{
+  position:absolute; top:2px; left:2px; width:25px; height:25px; border-radius:50%;
+  background:var(--surface); box-shadow:0 1px 3px rgba(23,34,29,.2);
+  display:grid; place-items:center; font-size:13px; line-height:1;
+  transition:transform .18s cubic-bezier(.2,.7,.2,1);
+}
+.mic-switch.on{background:var(--accent); border-color:var(--accent);}
+.mic-switch.on .mic-knob{transform:translateX(26px);}
 .echo-body{flex:1; min-width:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .echo-status{color:var(--text2); font-size:13px; min-width:0;}
 #echo-bar[data-echo="recording"]{border-color:color-mix(in srgb, var(--danger) 45%, var(--border));}

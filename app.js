@@ -129,14 +129,14 @@ let settings = Object.assign(
 function migrateSegment(s){
   if (s.folder == null) s.folder = 'Uncategorized';
   if (s.len == null && s.a != null && s.b != null) s.len = round1(s.b - s.a);
-  if (s.dueDate == null){
-    s.srsLevel = 0;
-    if (s.lastPracticedAt){
-      const d = new Date(s.lastPracticedAt); d.setDate(d.getDate() + 1);
-      s.dueDate = dateStr(d);
-    } else {
-      s.dueDate = todayStr();
-    }
+  if (s.srsLevel == null) s.srsLevel = 0;
+  // a clip enters the review rotation only after its first practice,
+  // so saving a big batch doesn't flood tomorrow's queue
+  if (!s.lastPracticedAt){
+    s.dueDate = null;
+  } else if (s.dueDate == null){
+    const d = new Date(s.lastPracticedAt); d.setDate(d.getDate() + 1);
+    s.dueDate = dateStr(d);
   }
 }
 segments.forEach(migrateSegment);
@@ -161,7 +161,8 @@ const state = {
   currentSegmentId: null,
   folderFilter: null,          // null = All
   folderSort: 'recent',        // recent | name | count
-  clipSort: 'recent',          // recent | reps | name
+  clipSort: 'recent',          // recent | stale | reps | name
+  clipFilter: 'all',           // all | due | new | done
   hmView: 'm1',                // m1 | m3 | y1
   pendingVideo: null,          // {videoId, start} waiting for API ready
   queue: null,                 // review queue: array of segment ids, or null
@@ -371,6 +372,7 @@ function pausedTick(){
     if (document.body.dataset.playstate === 'waiting') setPlayVisual('idle');
   }
   pausedLastT = t;
+  renderStripPlayhead();
 }
 
 /* ---------------- polling (only while playing) ---------------- */
@@ -421,6 +423,8 @@ function pollTick(){
   else if (rep.armed && state.b != null && t >= state.b - 0.05){
     handleReachB();
   }
+
+  renderStripPlayhead();
 }
 
 function repIsValid(){
@@ -473,7 +477,7 @@ function makeSegment(fields = {}){
     createdAt: Date.now(),
     lastPracticedAt: 0,
     srsLevel: 0,
-    dueDate: dateStrPlus(1),          // first review: tomorrow
+    dueDate: null,                    // enters the review rotation after its first practice
   }, fields);
 }
 
@@ -494,6 +498,13 @@ function countRep(){
   saveLogs();
 
   updateRepButton(true);
+
+  // first practice ever: the clip joins the review rotation, due tomorrow
+  if (!seg.dueDate){
+    seg.srsLevel = 0;
+    seg.dueDate = dateStrPlus(SRS_INTERVALS[0]);
+    saveSegments();
+  }
 
   // SRS: clearing a due clip levels it up and schedules the next review
   if (isDue(seg) && segTodayReps(seg.id) >= REVIEW_REPS){
@@ -626,7 +637,9 @@ async function idbDelTake(segId){
 /* --- echo UI state machine: off | ready | recording | take --- */
 function echoUI(){
   const bar = $('#echo-bar');
-  $('#mic-toggle').classList.toggle('on', !!settings.micEnabled);
+  const mt = $('#mic-toggle');
+  mt.classList.toggle('on', !!settings.micEnabled);
+  mt.setAttribute('aria-checked', String(!!settings.micEnabled));
   if (!settings.micEnabled){
     bar.dataset.echo = 'off';
     $('#echo-status').textContent = 'Mic off — turn it on to hear yourself vs. the original';
@@ -784,13 +797,14 @@ function nudgeStart(delta){
   if (state.a == null){ toast('Pause the video at a start point first'); return; }
   setStart(state.a + delta);
 }
-function changeLen(delta){
-  state.len = clamp(round1(state.len + delta), LEN_MIN, LEN_MAX);
+function setLen(val){
+  state.len = clamp(round1(val), LEN_MIN, LEN_MAX);
   settings.defaultLen = state.len; saveSettings();
   recomputeB();
   state.currentSegmentId = findMatchingSegmentId();
   updateAll();
 }
+function changeLen(delta){ setLen(state.len + delta); }
 
 function findMatchingSegmentId(){
   if (state.a == null || state.b == null || !state.videoId) return null;
@@ -816,10 +830,122 @@ function bindHold(btn, fn){
   btn.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+/* ---------------- clip strip (visual timeline) ----------------
+   A zoomed window around the clip (not the whole video, which would make
+   a 2s clip invisible). Drag the body to move the clip, the edges to trim. */
+const strip = { win: null };
+let stripDrag = null;
+
+function stripWindow(){
+  const len = state.len || 2;
+  const w = Math.max(12, len * 3);              // window ≥ 12s so handles stay grabbable
+  const center = state.a + len / 2;
+  const dur = state.duration || state.a + len + 60;
+  let t0 = center - w / 2, t1 = center + w / 2;
+  if (t0 < 0){ t1 -= t0; t0 = 0; }
+  if (t1 > dur){ t0 = Math.max(0, t0 - (t1 - dur)); t1 = dur; }
+  return { t0, t1 };
+}
+
+function renderStrip(){
+  const el = $('#clip-strip');
+  const show = state.a != null && state.b != null;
+  el.classList.toggle('hidden', !show);
+  if (!show){ strip.win = null; return; }
+  if (!stripDrag) strip.win = stripWindow();    // freeze the window while dragging
+  const { t0, t1 } = strip.win;
+  const pct = t => clamp((t - t0) / (t1 - t0) * 100, 0, 100);
+  const range = $('#strip-range');
+  const left = pct(state.a);
+  range.style.left = left + '%';
+  range.style.width = Math.max(0, pct(state.b) - left) + '%';
+  $('#strip-t0').textContent = fmtTime(t0);
+  $('#strip-t1').textContent = fmtTime(t1);
+  renderStripPlayhead();
+}
+
+function renderStripPlayhead(){
+  const ph = $('#strip-playhead');
+  if (!strip.win || !playerReady){ ph.classList.add('hidden'); return; }
+  let t;
+  try { t = player.getCurrentTime(); } catch (e) { ph.classList.add('hidden'); return; }
+  const { t0, t1 } = strip.win;
+  if (t == null || isNaN(t) || t < t0 || t > t1){ ph.classList.add('hidden'); return; }
+  ph.classList.remove('hidden');
+  ph.style.left = ((t - t0) / (t1 - t0) * 100) + '%';
+}
+
+function applyStripDrag(t){
+  if (!stripDrag) return;
+  if (stripDrag.mode === 'a'){
+    // left edge: trim/extend the head, keeping the end where it is
+    const b = state.b;
+    const a = clamp(round1(t), Math.max(0, round1(b - LEN_MAX)), round1(b - LEN_MIN));
+    state.a = a;
+    state.len = round1(b - a);
+    settings.defaultLen = state.len; saveSettings();
+    recomputeB();
+    state.currentSegmentId = findMatchingSegmentId();
+    updateAll();
+  } else if (stripDrag.mode === 'b'){
+    setLen(t - state.a);
+  } else {
+    setStart(t - stripDrag.offset);
+  }
+}
+
+(function(){
+  const track = $('#strip-track');
+  const timeAt = clientX => {
+    const r = track.getBoundingClientRect();
+    const { t0, t1 } = strip.win;
+    return t0 + clamp((clientX - r.left) / r.width, 0, 1) * (t1 - t0);
+  };
+  track.addEventListener('pointerdown', e => {
+    if (state.a == null || !strip.win) return;
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    disarmRep();
+    rep.preview = null;
+    if (document.body.dataset.playstate === 'waiting') setPlayVisual('idle');
+    const t = timeAt(e.clientX);
+    const h = e.target.dataset ? e.target.dataset.h : null;
+    if (h === 'a' || h === 'b') stripDrag = { mode: h };
+    else if (e.target.closest('#strip-range')) stripDrag = { mode: 'move', offset: t - state.a };
+    else stripDrag = { mode: 'move', offset: state.len / 2 };   // tap empty track: center the clip there
+    applyStripDrag(t);
+    try { track.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  track.addEventListener('pointermove', e => { if (stripDrag) applyStripDrag(timeAt(e.clientX)); });
+  const end = () => {
+    if (!stripDrag) return;
+    stripDrag = null;
+    // when paused, park the playhead at the new start so what you see is what plays
+    if (playerReady && window.YT){
+      try {
+        const st = player.getPlayerState();
+        if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING){
+          player.seekTo(state.a, true);
+          pausedLastT = state.a;
+        }
+      } catch (err) {}
+    }
+    renderStrip();   // re-center the window now that the drag is done
+  };
+  ['pointerup', 'pointercancel'].forEach(ev => track.addEventListener(ev, end));
+})();
+
 /* ---------------- UI sync ---------------- */
 function updateAll(){
   $('#time-a').value = state.a != null ? fmtTime(state.a, true) : '';
   $('#len-val').textContent = state.len.toFixed(1) + 's';
+  const unset = state.a == null;
+  $('#clip-unset-hint').classList.toggle('hidden', !unset);
+  $$('.nudge, .preview-btn, .len-btn').forEach(b => { b.disabled = unset; });
+  $('#time-a').disabled = !state.videoId;
+  $('#clip-range').textContent = (state.a != null && state.b != null)
+    ? fmtTime(state.a, true) + ' → ' + fmtTime(state.b, true) : '';
+  renderStrip();
   updateRepButton(false);
 }
 function updateRepButton(bump){
@@ -828,7 +954,11 @@ function updateRepButton(bump){
   btn.disabled = !ready;
   const wrap = $('#rep-count');
   const saved = !!state.currentSegmentId;
-  $('#replay-label').textContent = saved ? 'Replay' : 'Replay (preview)';
+  $('#replay-label').textContent = saved ? 'Replay' : (ready ? 'Replay (unsaved)' : 'Replay');
+  const save = $('#save-btn');
+  save.classList.toggle('accent', ready && !saved);
+  save.textContent = saved ? 'Update' : 'Save';
+  save.title = saved ? 'Update this clip' : 'Save clip — reps only count for saved clips';
   if (saved){
     wrap.classList.remove('hidden');
     $('#rep-count-num').textContent = segTodayReps(state.currentSegmentId);
@@ -1016,12 +1146,27 @@ function sortedClips(list){
   const arr = list.slice();
   const sort = state.clipSort;
   arr.sort((x, y) => {
-    if (sort === 'name') return (x.label || '').localeCompare(y.label || '');
-    if (sort === 'reps') return (y.reps || 0) - (x.reps || 0);
-    return (y.lastPracticedAt || y.createdAt) - (x.lastPracticedAt || x.createdAt);  // recent
+    if (sort === 'name')  return (x.label || '').localeCompare(y.label || '');
+    if (sort === 'reps')  return (y.reps || 0) - (x.reps || 0);
+    if (sort === 'stale') return (x.lastPracticedAt || 0) - (y.lastPracticedAt || 0);  // never practiced first
+    return (y.lastPracticedAt || y.createdAt) - (x.lastPracticedAt || x.createdAt);    // recent
   });
   return arr;
 }
+
+/* practice status of a clip, for the at-a-glance dot + filters */
+function segStatus(seg){
+  if (segTodayReps(seg.id) > 0) return 'done';   // touched today
+  if (isDue(seg)) return 'due';                  // review waiting
+  if (!seg.lastPracticedAt) return 'new';        // never practiced
+  return 'ok';                                   // scheduled for a later day
+}
+const STATUS_TITLE = {
+  done: 'Practiced today',
+  due: 'Due for review',
+  new: 'Not practiced yet',
+  ok: 'Scheduled — comes back later',
+};
 
 function renderSegmentList(){
   const stats = folderStats();
@@ -1048,6 +1193,18 @@ function renderSegmentList(){
   // ---- clips pane ----
   let list = segments.slice();
   if (state.folderFilter) list = list.filter(s => (s.folder || DEFAULT_FOLDER) === state.folderFilter);
+
+  // status filter chips (counts reflect the current folder)
+  const counts = { all: list.length, due: 0, new: 0, done: 0 };
+  list.forEach(s => { const st = segStatus(s); if (counts[st] != null) counts[st]++; });
+  $$('#clip-filters .fchip').forEach(ch => {
+    const f = ch.dataset.f;
+    ch.classList.toggle('active', state.clipFilter === f);
+    const b = ch.querySelector('b');
+    if (b) b.textContent = counts[f] || 0;
+  });
+  if (state.clipFilter !== 'all') list = list.filter(s => segStatus(s) === state.clipFilter);
+
   list = sortedClips(list);
 
   const titleEl = $('#clips-pane-title');
@@ -1055,15 +1212,21 @@ function renderSegmentList(){
 
   const ul = $('#segment-list');
   ul.innerHTML = '';
-  $('#segment-list-empty').classList.toggle('hidden', list.length > 0);
+  const empty = $('#segment-list-empty');
+  empty.classList.toggle('hidden', list.length > 0);
+  empty.textContent = (state.clipFilter !== 'all' && counts.all > 0)
+    ? 'Nothing matches this filter — try another one above.'
+    : 'No clips here yet. Load a video, set a start, then hit Save.';
 
   list.forEach(seg => {
+    const st = segStatus(seg);
     const li = document.createElement('li');
     li.className = 'seg-item';
     li.setAttribute('role', 'button');
     li.tabIndex = 0;
     li.title = 'Practice this clip';
     li.innerHTML =
+      '<span class="seg-status" data-st="' + st + '" title="' + STATUS_TITLE[st] + '"></span>' +
       '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
       '<div class="seg-info">' +
         '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
@@ -1090,7 +1253,7 @@ function renderSegmentList(){
 const REVIEW_REPS = 3;
 const SRS_INTERVALS = [1, 3, 7, 14, 30];
 
-function isDue(seg){ return (seg.dueDate || todayStr()) <= todayStr(); }
+function isDue(seg){ return !!seg.dueDate && seg.dueDate <= todayStr(); }
 function dueSegments(){
   return segments
     .filter(isDue)
@@ -1153,20 +1316,26 @@ function renderReviewCard(){
   if (!segments.length){ sec.classList.add('hidden'); return; }
   sec.classList.remove('hidden');
   const due = dueSegments();
+  const fresh = segments.filter(s => !s.lastPracticedAt).length;
+  const freshNote = fresh
+    ? ' · ' + fresh + ' new clip' + (fresh === 1 ? '' : 's') + ' not started yet'
+    : '';
   const badge = $('#review-badge');
   if (due.length){
     badge.classList.remove('done');
     $('#due-count').textContent = due.length;
     $('#due-word').textContent = 'due';
     $('#review-title').textContent = "Today's review";
-    $('#review-sub').textContent = due.length + (due.length === 1 ? ' clip' : ' clips') + ' waiting · ' + REVIEW_REPS + ' reps each to clear';
+    $('#review-sub').textContent = due.length + (due.length === 1 ? ' clip' : ' clips') + ' waiting · ' + REVIEW_REPS + ' reps each to clear' + freshNote;
     $('#start-review').classList.remove('hidden');
   } else {
     badge.classList.add('done');
     $('#due-count').textContent = '✓';
     $('#due-word').textContent = 'done';
     $('#review-title').textContent = 'All caught up';
-    $('#review-sub').textContent = 'Nothing due — reviews come back on a 1 / 3 / 7 / 14 / 30-day rhythm';
+    $('#review-sub').textContent = fresh
+      ? 'Nothing due — but ' + fresh + ' new clip' + (fresh === 1 ? ' hasn\'t' : 's haven\'t') + ' been practiced yet. One rep adds them to the rotation.'
+      : 'Nothing due — reviews come back on a 1 / 3 / 7 / 14 / 30-day rhythm';
     $('#start-review').classList.add('hidden');
   }
 }
@@ -1522,9 +1691,12 @@ $('#nav-clips').addEventListener('click', () => showView('clips'));
 $('#nav-practice').addEventListener('click', () => showView('practice'));
 $('#nav-settings').addEventListener('click', () => showView('settings'));
 
-// clips sorting
+// clips sorting + status filter
 $('#folder-sort').addEventListener('change', e => { state.folderSort = e.target.value; renderSegmentList(); });
 $('#clip-sort').addEventListener('change', e => { state.clipSort = e.target.value; renderSegmentList(); });
+$$('#clip-filters .fchip').forEach(ch => {
+  ch.addEventListener('click', () => { state.clipFilter = ch.dataset.f; renderSegmentList(); });
+});
 
 $$('.nudge').forEach(btn => {
   const d = parseFloat(btn.dataset.d);

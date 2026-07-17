@@ -129,9 +129,16 @@
         <span id="clips-pane-title">All clips</span>
         <select id="clip-sort" class="mini-select" title="Sort clips">
           <option value="recent">Recent</option>
+          <option value="stale">Least recent</option>
           <option value="reps">Reps</option>
           <option value="name">A–Z</option>
         </select>
+      </div>
+      <div id="clip-filters" class="chip-row" role="group" aria-label="Filter clips">
+        <button class="fchip active" data-f="all">All</button>
+        <button class="fchip" data-f="due">Due <b>0</b></button>
+        <button class="fchip" data-f="new">New <b>0</b></button>
+        <button class="fchip" data-f="done">Done today <b>0</b></button>
       </div>
       <ul id="segment-list" class="segment-list"></ul>
       <p id="segment-list-empty" class="list-empty hidden">No clips here yet. Load a video, set a start, then hit Save.</p>
@@ -178,29 +185,40 @@
     </div>
 
     <div class="clip-controls">
+      <p id="clip-unset-hint" class="dim small clip-hint">Play the video and pause where the line starts — the start point is captured automatically.</p>
+      <div id="clip-strip" class="clip-strip hidden">
+        <div id="strip-track" class="strip-track">
+          <div id="strip-range" class="strip-range">
+            <span class="strip-handle" data-h="a"></span>
+            <span class="strip-handle" data-h="b"></span>
+          </div>
+          <div id="strip-playhead" class="strip-playhead hidden"></div>
+        </div>
+        <div class="strip-times"><span id="strip-t0"></span><span class="dim">drag the clip · pull the edges</span><span id="strip-t1"></span></div>
+      </div>
       <div class="clip-group" id="start-group">
         <span class="len-label">Start</span>
         <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
         <div class="nudges">
-          <button class="btn nudge" data-d="-1">−1</button>
-          <button class="btn nudge" data-d="-0.5">−0.5</button>
-          <button class="btn nudge" data-d="0.5">+0.5</button>
-          <button class="btn nudge" data-d="1">+1</button>
+          <button class="btn nudge" data-d="-1">−1s</button>
+          <button class="btn nudge" data-d="-0.5">−0.5s</button>
+          <button class="btn nudge" data-d="0.5">+0.5s</button>
+          <button class="btn nudge" data-d="1">+1s</button>
         </div>
-        <button class="btn ghost preview-btn" title="Preview around the start point">Preview</button>
+        <button class="btn ghost preview-btn" title="Play half a second around the start point to check it">Check start</button>
       </div>
       <div class="clip-group" id="length-group">
         <span class="len-label">Length</span>
         <button class="btn len-btn" data-d="-0.5">−0.5s</button>
         <span id="len-val" class="len-val">2.0s</span>
         <button class="btn len-btn" data-d="0.5">+0.5s</button>
-        <span class="dim small len-hint">clip = start → start + length</span>
+        <span id="clip-range" class="dim small len-hint"></span>
       </div>
     </div>
 
     <!-- echo: record yourself after each replay, then compare -->
     <div id="echo-bar" class="echo-bar" data-echo="off">
-      <button id="mic-toggle" class="mic-btn" title="Record my voice after each replay">🎙</button>
+      <button id="mic-toggle" class="mic-switch" role="switch" aria-checked="false" title="Record my voice after each replay"><span class="mic-knob">🎙</span></button>
       <div class="echo-body">
         <div id="echo-status" class="echo-status">Mic off — turn it on to hear yourself vs. the original</div>
         <div id="echo-actions" class="echo-actions hidden">
