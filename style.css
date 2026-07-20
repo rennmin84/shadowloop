@@ -355,8 +355,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .fm-item:hover{background:var(--surface2);}
 .fm-item.current{background:var(--accent-tint); color:var(--accent-deep);}
+/* action group (new folder / reset / delete) sits below the folders with one separator */
 .fm-item.fm-new{color:var(--accent-deep); border-top:1px solid var(--border); margin-top:3px; padding-top:9px;}
-.fm-item.fm-del{color:var(--danger); border-top:1px solid var(--border); border-radius:0 0 8px 8px; margin-top:3px; padding-top:9px;}
+.fm-item.fm-reset{color:var(--text);}
+.fm-item.fm-del{color:var(--danger); border-radius:0 0 8px 8px;}
 .fm-item.fm-del:hover{background:color-mix(in srgb, var(--danger) 12%, var(--surface));}
 .list-empty{color:var(--text2); text-align:center; padding:20px 0; font-size:14px;}
 

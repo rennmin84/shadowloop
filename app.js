@@ -1276,6 +1276,25 @@ function moveSegment(id, folder){
   toast('Moved to “' + folder + '”');
 }
 
+function segDisplayName(seg){
+  return (seg.note && seg.note.trim()) || seg.label || seg.title || 'this clip';
+}
+
+/* zero a clip's rep count only — practice history, SRS schedule and the
+   heatmap/streak are all kept */
+function resetSegmentReps(id){
+  const seg = segments.find(s => s.id === id);
+  if (!seg) return;
+  if (!seg.reps){ toast('Already at 0 reps'); return; }
+  const name = segDisplayName(seg);
+  if (!confirm('Reset reps for “' + name.slice(0, 40) + '” to 0? Your schedule and streak stay intact.')) return;
+  seg.reps = 0;
+  saveSegments();
+  renderSegmentList();
+  renderDashboard();
+  toast('Reps reset to 0');
+}
+
 let folderMenuEl = null;
 function closeFolderMenu(){
   if (!folderMenuEl) return;
@@ -1309,6 +1328,12 @@ function openFolderMenu(seg, anchor){
     if (name){ ensureFolder(name); moveSegment(seg.id, name); }
   });
   menu.appendChild(nw);
+
+  const rz = document.createElement('button');
+  rz.className = 'fm-item fm-reset';
+  rz.textContent = '↺ Reset reps';
+  rz.addEventListener('click', e => { e.stopPropagation(); closeFolderMenu(); resetSegmentReps(seg.id); });
+  menu.appendChild(rz);
 
   const del = document.createElement('button');
   del.className = 'fm-item fm-del';
