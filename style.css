@@ -300,14 +300,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
    the list fills the rest and scrolls, so switching folders never resizes it */
 .clips-pane{display:flex; flex-direction:column; height:66vh; min-height:0;}
 .segment-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; flex:1 1 auto; min-height:0; overflow-y:auto;}
-/* at-a-glance practice status: green = done today, amber = due, grey = never practiced */
-.seg-status{flex-shrink:0; width:9px; height:9px; border-radius:50%;}
-.seg-status[data-st="done"]{background:var(--accent);}
-.seg-status[data-st="due"]{background:var(--accent-wait);}
-.seg-status[data-st="new"]{background:var(--text2); opacity:.4;}
-.seg-status[data-st="ok"]{background:transparent; box-shadow:inset 0 0 0 1.5px var(--border);}
 .seg-item{
-  position:relative; display:flex; align-items:center; gap:12px; padding:10px;
+  position:relative; display:flex; align-items:center; gap:12px; padding:10px 12px;
   border:1px solid var(--border); border-radius:13px; cursor:pointer; background:var(--surface);
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
@@ -327,14 +321,22 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .seg-folder-btn .fb-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .seg-folder-btn:hover{border-color:color-mix(in srgb, var(--accent) 35%, transparent); filter:brightness(.98);}
 
-/* reps: the count you glance at to see how much you've drilled a line */
+/* reps: the count you glance at to see how much you've drilled a line;
+   its colour carries the practice status (green=done today, amber=due,
+   grey=never practiced, neutral=scheduled) now that the status dot is gone */
 .seg-reps{
   flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  min-width:48px; padding:6px 8px; border-radius:11px; background:var(--surface2);
+  min-width:52px; padding:7px 10px; border-radius:12px; background:var(--surface2);
   line-height:1; align-self:center;
 }
-.seg-reps b{font-family:var(--font-display); font-weight:800; font-size:19px; color:var(--accent-deep); font-variant-numeric:tabular-nums;}
-.seg-reps span{font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text2); margin-top:2px;}
+.seg-reps b{font-family:var(--font-display); font-weight:800; font-size:20px; color:var(--text); font-variant-numeric:tabular-nums;}
+.seg-reps span{font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text2); margin-top:3px;}
+.seg-reps[data-st="done"]{background:var(--accent-tint);}
+.seg-reps[data-st="done"] b{color:var(--accent-deep);}
+.seg-reps[data-st="done"] span{color:var(--accent-deep); opacity:.8;}
+.seg-reps[data-st="due"]{background:color-mix(in srgb, var(--accent-wait) 16%, var(--surface2));}
+.seg-reps[data-st="due"] b{color:var(--accent-wait);}
+.seg-reps[data-st="new"] b{color:var(--text2); opacity:.7;}
 
 /* folder move menu (floating) */
 .folder-menu{
@@ -350,8 +352,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .fm-item:hover{background:var(--surface2);}
 .fm-item.current{background:var(--accent-tint); color:var(--accent-deep);}
 .fm-item.fm-new{color:var(--accent-deep); border-top:1px solid var(--border); border-radius:0 0 8px 8px; margin-top:3px; padding-top:9px;}
-.seg-go{flex-shrink:0; color:var(--accent); font-size:14px; opacity:0; transition:opacity .15s; padding-right:22px;}
-.seg-item:hover .seg-go{opacity:1;}
 .seg-del{
   position:absolute; top:7px; right:7px; width:24px; height:24px; line-height:1;
   border:none; border-radius:8px; background:transparent; color:var(--text2);

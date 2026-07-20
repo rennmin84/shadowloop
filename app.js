@@ -130,6 +130,12 @@ function migrateSegment(s){
   if (s.folder == null) s.folder = 'Uncategorized';
   if (s.len == null && s.a != null && s.b != null) s.len = round1(s.b - s.a);
   if (s.srsLevel == null) s.srsLevel = 0;
+  // strip the old auto-generated "0:32 (2.0s)" tail from labels — the list
+  // shows timestamp + length on their own now, so the name stays clean
+  if (s.label){
+    const m = /^(.*?)\s*\d{1,3}:\d{2}(?::\d{2})?\s*\(\d+\.\d+s\)\s*$/.exec(s.label);
+    if (m) s.label = m[1].trim() || s.title || 'Clip';
+  }
   // a clip enters the review rotation only after its first practice,
   // so saving a big batch doesn't flood tomorrow's queue
   if (!s.lastPracticedAt){
@@ -140,6 +146,7 @@ function migrateSegment(s){
   }
 }
 segments.forEach(migrateSegment);
+lsSave(LS.seg, segments);      // persist migrations (cleaned labels, dueDate) locally
 
 let applyingRemote = false;   // true while merging cloud data, to avoid sync feedback loops
 const saveSegments = () => { lsSave(LS.seg, segments); if (!applyingRemote) scheduleSync(); };
@@ -1377,7 +1384,6 @@ function renderSegmentList(){
     // meta now carries just where + how long; name, status dot and reps live elsewhere
     const meta = fmtTime(seg.a) + ' · ' + len.toFixed(1) + 's';
     li.innerHTML =
-      '<span class="seg-status" data-st="' + st + '" title="' + STATUS_TITLE[st] + '"></span>' +
       '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
       '<div class="seg-info">' +
         '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
@@ -1387,9 +1393,8 @@ function renderSegmentList(){
             '<span class="fb-name">' + escapeHtml(folder) + '</span> ⌄</button>' +
         '</div>' +
       '</div>' +
-      '<div class="seg-reps" title="Practiced ' + seg.reps + (seg.reps === 1 ? ' time' : ' times') + '">' +
+      '<div class="seg-reps" data-st="' + st + '" title="' + STATUS_TITLE[st] + ' · practiced ' + seg.reps + (seg.reps === 1 ? ' time' : ' times') + '">' +
         '<b>' + seg.reps + '</b><span>reps</span></div>' +
-      '<span class="seg-go">▶</span>' +
       '<button class="seg-del" title="Delete clip" aria-label="Delete clip">✕</button>';
     const thumb = li.querySelector('.seg-thumb');
     thumb.addEventListener('error', () => { thumb.style.display = 'none'; });
