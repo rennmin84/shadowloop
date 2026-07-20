@@ -1998,7 +1998,16 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ---------------- URL params (no-backend share) ---------------- */
+/* Clicking the video moves keyboard focus into YouTube's cross-origin iframe,
+   which then swallows every keystroke (and with disablekb its own J/L are off
+   too — so keys would do nothing). Pull focus back to our document whenever the
+   player grabs it, so the shortcuts above keep firing. */
+window.addEventListener('blur', () => {
+  const ae = document.activeElement;
+  if (ae && ae.tagName === 'IFRAME' && !$('#view-practice').classList.contains('hidden')){
+    setTimeout(() => { try { ae.blur(); window.focus(); } catch (e) {} }, 0);
+  }
+});
 function bootFromParams(){
   const q = new URLSearchParams(location.search);
   const v = q.get('v');
