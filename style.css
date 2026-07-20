@@ -382,6 +382,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .clip-group{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
 .clip-hint{margin:0; padding:2px 2px 0;}
 
+/* summary row + collapsible fine-tune panel */
+.clip-summary{display:flex; align-items:center; gap:10px;}
+.clip-summary-text{
+  flex:1; min-width:0; font-family:var(--font-display); font-weight:800; font-size:16px;
+  letter-spacing:-.01em; font-variant-numeric:tabular-nums;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.adjust-panel{
+  display:flex; flex-direction:column; gap:12px;
+  padding-top:12px; border-top:1px dashed var(--border);
+}
+
 /* visual timeline: a zoomed window around the clip */
 .clip-strip{padding:2px 2px 0;}
 .strip-track{
@@ -420,13 +432,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .time-input{width:88px; text-align:center; font-variant-numeric:tabular-nums; padding:9px 4px; font-weight:700;}
 .nudges{display:flex; gap:4px;}
-.nudge{padding:9px 6px; min-width:46px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
-.preview-btn{margin-left:auto;}
-.len-btn{min-width:58px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
-.len-val{
-  min-width:52px; text-align:center; font-weight:800; font-variant-numeric:tabular-nums;
-  font-family:var(--font-display); font-size:16px;
-}
+.nudge,.end-nudge{padding:9px 6px; min-width:46px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
 .len-hint{margin-left:auto;}
 
 /* ---------- echo bar: record & compare ---------- */
@@ -486,6 +492,13 @@ body.on-practice .control-bar{display:flex;}
 .replay-btn:disabled{background:var(--surface2); color:var(--text2);}
 .replay-icon{font-size:14px;}
 body[data-playstate="waiting"] .replay-btn{
+  background:var(--accent-wait);
+  animation:breath 1.9s ease-in-out infinite;
+}
+/* tap-to-mark: deep green while watching, breathing amber once the start is tapped */
+.replay-btn.watch{background:var(--accent-deep);}
+.replay-btn.watch:hover{background:var(--accent-deep); filter:brightness(1.06);}
+.replay-btn.marking{
   background:var(--accent-wait);
   animation:breath 1.9s ease-in-out infinite;
 }

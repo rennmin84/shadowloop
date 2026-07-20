@@ -163,6 +163,7 @@ const state = {
   folderSort: 'recent',        // recent | name | count
   clipSort: 'recent',          // recent | stale | reps | name
   clipFilter: 'all',           // all | due | new | done
+  adjustOpen: false,           // fine-tune panel expanded
   hmView: 'm1',                // m1 | m3 | y1
   pendingVideo: null,          // {videoId, start} waiting for API ready
   queue: null,                 // review queue: array of segment ids, or null
@@ -260,6 +261,7 @@ function createPlayer(videoId, start){
 }
 
 function loadVideo(videoId, start = 0){
+  cancelMark();
   state.videoId = videoId;
   state.url = 'https://www.youtube.com/watch?v=' + videoId;
   state.title = '';
@@ -309,7 +311,7 @@ function onPlayerStateChange(ev){
     stopPausedPoll();
     startPoll();
     if (rep.armed) setPlayVisual('playing');
-    else if (!rep.preview) setPlayVisual('playing');
+    else if (!rep.preview) setPlayVisual('watching');   // free playback: main button becomes tap-to-mark
   }
   else if (ev.data === S.PAUSED){
     if (rep.armed) rep.pauseStart = performance.now();
@@ -318,7 +320,8 @@ function onPlayerStateChange(ev){
     // 1a: capture the current time as the clip start on a manual pause,
     // unless this pause was programmatic (preview end / replay finished).
     if (!rep.armed && !rep.preview && !programmaticPause){
-      captureStartFromPlayer();
+      if (mark.pending) finishMarkAtPause();   // pausing mid-mark: the pause is the end
+      else captureStartFromPlayer();
     }
     programmaticPause = false;
     // while paused, keep watching the playhead: seeking on the paused
@@ -333,6 +336,7 @@ function onPlayerStateChange(ev){
   else if (ev.data === S.ENDED){
     stopPoll();
     stopPausedPoll();
+    cancelMark();
     if (rep.armed && state.b != null && state.duration && state.b >= state.duration - 0.6){
       handleReachB();
     } else {
@@ -533,6 +537,7 @@ function doReplay(){
   if (state.a == null || state.b == null || state.b <= state.a){
     toast('Mark a start point first'); return;
   }
+  cancelMark();
   takeAudio.pause();
   abPending = false;
   if (rec.recorder) stopTake(false);
@@ -546,20 +551,82 @@ function doReplay(){
   setPlayVisual('playing');
 }
 
-function previewCut(){
-  const t = state.a;
-  if (t == null){ toast('Mark a start point first'); return; }
+/* ---------------- tap-to-mark: set the clip by ear ----------------
+   While the video plays freely, the main button turns into a marker:
+   tap when the line starts, tap again when it ends. No timeline needed. */
+const mark = { pending: false };
+const MARK_REACTION = 0.35;   // people tap about a beat after the line begins
+
+function markStart(){
   if (!playerReady) return;
+  let t;
+  try { t = player.getCurrentTime(); } catch (e) { return; }
+  mark.pending = true;
+  setStart(Math.max(0, t - MARK_REACTION));
+}
+function markEnd(){
+  let t;
+  try { t = player.getCurrentTime(); } catch (e) { cancelMark(); return; }
+  mark.pending = false;
+  setLen(round1(t - 0.1) - state.a);
+  toast('Clip set — listen, then hit Replay');
+  playOriginalClip();          // jump back and audition what you marked
+  setPlayVisual('idle');
+}
+function cancelMark(){
+  if (!mark.pending) return;
+  mark.pending = false;
+  updateRepButton(false);
+}
+function finishMarkAtPause(){
+  let t;
+  try { t = player.getCurrentTime(); } catch (e) { cancelMark(); return; }
+  mark.pending = false;
+  if (state.a != null && t > state.a + LEN_MIN){
+    setLen(round1(t) - state.a);   // the pause point is the end
+  } else {
+    captureStartFromPlayer();      // paused too soon — fall back to pause-capture
+  }
+  updateRepButton(false);
+}
+function onMainButton(){
+  if (document.body.dataset.playstate === 'watching'){
+    if (mark.pending) markEnd();
+    else markStart();
+    return;
+  }
+  doReplay();
+}
+
+/* ---------------- audition: every adjustment plays the new edge ----------------
+   You can't see sound, so each start/end change answers with your ears:
+   a short snippet plays at the boundary you just moved. */
+let auditionTimer = null;
+function scheduleAudition(edge){          // 'a' = start, 'b' = end
+  if (!playerReady || state.a == null || state.b == null) return;
+  if (rep.armed) return;
+  clearTimeout(auditionTimer);
+  auditionTimer = setTimeout(() => { auditionTimer = null; auditionEdge(edge); }, 350);
+}
+function auditionEdge(edge){
+  if (!playerReady || state.a == null || state.b == null) return;
+  cancelMark();
+  takeAudio.pause();
   disarmRep();
-  rep.preview = { end: t + 0.5 };
+  const from = edge === 'b' ? Math.max(state.a, state.b - 0.8) : state.a;
+  const to   = edge === 'b' ? state.b : Math.min(state.b, state.a + 0.8);
+  rep.preview = { end: to };
   try {
     player.setPlaybackRate(1);
-    player.seekTo(Math.max(0, t - 0.5), true);
+    player.seekTo(from, true);
     player.playVideo();
   } catch (e) {}
 }
 
-function setPlayVisual(mode){ document.body.dataset.playstate = mode; }
+function setPlayVisual(mode){
+  document.body.dataset.playstate = mode;
+  updateRepButton(false);
+}
 
 function seekRelative(delta){
   if (!playerReady || !state.videoId){ toast('Load a video first'); return; }
@@ -567,6 +634,7 @@ function seekRelative(delta){
   try { t = player.getCurrentTime(); st = player.getPlayerState(); } catch (e) { return; }
   if (rep.armed) disarmRep();
   rep.preview = null;
+  cancelMark();
   const target = clamp(round1(t + delta), 0, state.duration || 36000);
   try { player.seekTo(target, true); } catch (e) {}
   const playing = st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING;
@@ -762,6 +830,7 @@ takeAudio.addEventListener('pause', () => $('#play-mine').classList.remove('play
 
 function playOriginalClip(){
   if (!playerReady || state.a == null || state.b == null){ toast('Mark a start point first'); return; }
+  cancelMark();
   takeAudio.pause();
   if (rec.recorder) stopTake(false);
   disarmRep();
@@ -907,6 +976,7 @@ function applyStripDrag(t){
     e.preventDefault();
     disarmRep();
     rep.preview = null;
+    cancelMark();
     if (document.body.dataset.playstate === 'waiting') setPlayVisual('idle');
     const t = timeAt(e.clientX);
     const h = e.target.dataset ? e.target.dataset.h : null;
@@ -919,56 +989,69 @@ function applyStripDrag(t){
   track.addEventListener('pointermove', e => { if (stripDrag) applyStripDrag(timeAt(e.clientX)); });
   const end = () => {
     if (!stripDrag) return;
+    const edge = stripDrag.mode === 'b' ? 'b' : 'a';
     stripDrag = null;
-    // when paused, park the playhead at the new start so what you see is what plays
-    if (playerReady && window.YT){
-      try {
-        const st = player.getPlayerState();
-        if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING){
-          player.seekTo(state.a, true);
-          pausedLastT = state.a;
-        }
-      } catch (err) {}
-    }
-    renderStrip();   // re-center the window now that the drag is done
+    renderStrip();            // re-center the window now that the drag is done
+    scheduleAudition(edge);   // and let the ear check the new boundary
   };
   ['pointerup', 'pointercancel'].forEach(ev => track.addEventListener(ev, end));
 })();
 
 /* ---------------- UI sync ---------------- */
+function renderClipSummary(){
+  const has = state.a != null && state.b != null;
+  $('#clip-summary').classList.toggle('hidden', !has);
+  $('#adjust-panel').classList.toggle('hidden', !(has && state.adjustOpen));
+  if (has){
+    $('#clip-summary-text').textContent =
+      fmtTime(state.a, true) + ' → ' + fmtTime(state.b, true) + ' · ' + state.len.toFixed(1) + 's';
+  }
+  const tg = $('#adjust-toggle');
+  tg.textContent = state.adjustOpen ? 'Adjust ⌃' : 'Adjust ⌄';
+  tg.setAttribute('aria-expanded', String(state.adjustOpen));
+}
 function updateAll(){
   $('#time-a').value = state.a != null ? fmtTime(state.a, true) : '';
+  $('#time-b').value = state.b != null ? fmtTime(state.b, true) : '';
   $('#len-val').textContent = state.len.toFixed(1) + 's';
-  const unset = state.a == null;
-  $('#clip-unset-hint').classList.toggle('hidden', !unset);
-  $$('.nudge, .preview-btn, .len-btn').forEach(b => { b.disabled = unset; });
-  $('#time-a').disabled = !state.videoId;
-  $('#clip-range').textContent = (state.a != null && state.b != null)
-    ? fmtTime(state.a, true) + ' → ' + fmtTime(state.b, true) : '';
+  $('#clip-unset-hint').classList.toggle('hidden', state.a != null);
+  renderClipSummary();
   renderStrip();
   updateRepButton(false);
 }
 function updateRepButton(bump){
   const btn = $('#replay-btn');
   const ready = playerReady && state.a != null && state.b != null && state.b > state.a;
-  btn.disabled = !ready;
-  const wrap = $('#rep-count');
   const saved = !!state.currentSegmentId;
-  $('#replay-label').textContent = saved ? 'Replay' : (ready ? 'Replay (unsaved)' : 'Replay');
+  const wrap = $('#rep-count');
+  const watching = document.body.dataset.playstate === 'watching';
+  btn.classList.toggle('watch', watching);
+  btn.classList.toggle('marking', watching && mark.pending);
+  if (watching){
+    // free playback: the main button marks the clip by ear
+    btn.disabled = false;
+    $('.replay-icon').textContent = mark.pending ? '⏹' : '⏺';
+    $('#replay-label').textContent = mark.pending ? 'Line ends — tap' : 'Line starts — tap';
+    wrap.classList.add('hidden');
+  } else {
+    btn.disabled = !ready;
+    $('.replay-icon').textContent = '▶';
+    $('#replay-label').textContent = saved ? 'Replay' : (ready ? 'Replay (unsaved)' : 'Replay');
+    if (saved){
+      wrap.classList.remove('hidden');
+      $('#rep-count-num').textContent = segTodayReps(state.currentSegmentId);
+      if (bump){
+        wrap.classList.remove('bump'); void wrap.offsetWidth;
+        wrap.classList.add('bump');
+      }
+    } else {
+      wrap.classList.add('hidden');
+    }
+  }
   const save = $('#save-btn');
-  save.classList.toggle('accent', ready && !saved);
+  save.classList.toggle('accent', ready && !saved && !watching);
   save.textContent = saved ? 'Update' : 'Save';
   save.title = saved ? 'Update this clip' : 'Save clip — reps only count for saved clips';
-  if (saved){
-    wrap.classList.remove('hidden');
-    $('#rep-count-num').textContent = segTodayReps(state.currentSegmentId);
-    if (bump){
-      wrap.classList.remove('bump'); void wrap.offsetWidth;
-      wrap.classList.add('bump');
-    }
-  } else {
-    wrap.classList.add('hidden');
-  }
 }
 
 /* ---------------- folders ---------------- */
@@ -1085,6 +1168,7 @@ function deleteSegment(id){
 function loadSegment(id){
   const seg = segments.find(s => s.id === id);
   if (!seg) return;
+  cancelMark();
   showView('practice');
   loadTakeFor(seg.id);
   const apply = () => {
@@ -1700,13 +1784,17 @@ $$('#clip-filters .fchip').forEach(ch => {
 
 $$('.nudge').forEach(btn => {
   const d = parseFloat(btn.dataset.d);
-  bindHold(btn, () => nudgeStart(d));
+  bindHold(btn, () => { nudgeStart(d); scheduleAudition('a'); });
 });
-$$('.len-btn').forEach(btn => {
+$$('.end-nudge').forEach(btn => {
   const d = parseFloat(btn.dataset.d);
-  bindHold(btn, () => changeLen(d));
+  bindHold(btn, () => { changeLen(d); scheduleAudition('b'); });
 });
-$('.preview-btn').addEventListener('click', previewCut);
+$('#adjust-toggle').addEventListener('click', () => {
+  state.adjustOpen = !state.adjustOpen;
+  renderClipSummary();
+  if (state.adjustOpen) renderStrip();
+});
 $('#skip-back').addEventListener('click', () => seekRelative(-10));
 $('#skip-fwd').addEventListener('click', () => seekRelative(10));
 
@@ -1737,14 +1825,24 @@ $('#queue-exit').addEventListener('click', exitReview);
   const inp = $('#time-a');
   const commit = () => {
     const v = parseTimeStr(inp.value);
-    if (v != null) setStart(v);
+    if (v != null){ setStart(v); scheduleAudition('a'); }
     else inp.value = state.a != null ? fmtTime(state.a, true) : '';
   };
   inp.addEventListener('change', commit);
   inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ commit(); inp.blur(); } });
 })();
+(function(){
+  const inp = $('#time-b');
+  const commit = () => {
+    const v = parseTimeStr(inp.value);
+    if (v != null && state.a != null && v > state.a){ setLen(v - state.a); scheduleAudition('b'); }
+    else inp.value = state.b != null ? fmtTime(state.b, true) : '';
+  };
+  inp.addEventListener('change', commit);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ commit(); inp.blur(); } });
+})();
 
-$('#replay-btn').addEventListener('click', doReplay);
+$('#replay-btn').addEventListener('click', onMainButton);
 $('#save-btn').addEventListener('click', openSaveModal);
 $('#modal-cancel').addEventListener('click', closeSaveModal);
 $('#modal-save').addEventListener('click', saveFromModal);
@@ -1823,10 +1921,11 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     const step = (e.shiftKey ? 1 : 0.5) * (k === 'ArrowLeft' ? -1 : 1);
     nudgeStart(step);
+    scheduleAudition('a');
   } else if (k === '-' || k === '_'){
-    e.preventDefault(); changeLen(-0.5);
+    e.preventDefault(); changeLen(-0.5); scheduleAudition('b');
   } else if (k === '=' || k === '+'){
-    e.preventDefault(); changeLen(0.5);
+    e.preventDefault(); changeLen(0.5); scheduleAudition('b');
   }
 });
 

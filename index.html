@@ -50,7 +50,7 @@
         <input id="url-input-hero" type="url" inputmode="url" placeholder="Paste a YouTube link" autocomplete="off">
         <button id="url-load-hero" class="btn accent hero-go">Load</button>
       </div>
-      <p class="hero-hint">Load a video → pause at a line → hit Replay and speak along.</p>
+      <p class="hero-hint">Load a video → tap when your line starts and ends → Replay and speak along.</p>
     </div>
     <div class="hero-stats">
       <div class="hero-ring">
@@ -82,7 +82,7 @@
   <section id="getting-started" class="home-sec hidden">
     <div class="steps-strip card">
       <div class="step"><span class="step-dot">1</span><p>Paste a link above and load the video</p></div>
-      <div class="step"><span class="step-dot">2</span><p>Pause at a line you want to master — the start point is captured for you</p></div>
+      <div class="step"><span class="step-dot">2</span><p>While it plays, tap <b>⏺ Line starts</b> when you hear your line, tap again when it ends — pausing on the line works too</p></div>
       <div class="step"><span class="step-dot">3</span><p>Save the clip, then hit Replay and speak along — every rep counts</p></div>
       <p class="dim small steps-note">Practiced on another device before? Open Settings (⚙ top right) to import a backup or turn on cloud sync — your streak and clips will come right back.</p>
     </div>
@@ -185,34 +185,42 @@
     </div>
 
     <div class="clip-controls">
-      <p id="clip-unset-hint" class="dim small clip-hint">Play the video and pause where the line starts — the start point is captured automatically.</p>
-      <div id="clip-strip" class="clip-strip hidden">
-        <div id="strip-track" class="strip-track">
-          <div id="strip-range" class="strip-range">
-            <span class="strip-handle" data-h="a"></span>
-            <span class="strip-handle" data-h="b"></span>
+      <p id="clip-unset-hint" class="dim small clip-hint">Play the video — when your line begins, tap <b>⏺ Line starts</b> below, then tap again when it ends. Pausing the video also sets the start.</p>
+      <div id="clip-summary" class="clip-summary hidden">
+        <span class="len-label">Clip</span>
+        <span id="clip-summary-text" class="clip-summary-text"></span>
+        <button id="adjust-toggle" class="text-btn" aria-expanded="false">Adjust ⌄</button>
+      </div>
+      <div id="adjust-panel" class="adjust-panel hidden">
+        <div id="clip-strip" class="clip-strip hidden">
+          <div id="strip-track" class="strip-track">
+            <div id="strip-range" class="strip-range">
+              <span class="strip-handle" data-h="a"></span>
+              <span class="strip-handle" data-h="b"></span>
+            </div>
+            <div id="strip-playhead" class="strip-playhead hidden"></div>
           </div>
-          <div id="strip-playhead" class="strip-playhead hidden"></div>
+          <div class="strip-times"><span id="strip-t0"></span><span class="dim">drag the clip · pull the edges · you'll hear each change</span><span id="strip-t1"></span></div>
         </div>
-        <div class="strip-times"><span id="strip-t0"></span><span class="dim">drag the clip · pull the edges</span><span id="strip-t1"></span></div>
-      </div>
-      <div class="clip-group" id="start-group">
-        <span class="len-label">Start</span>
-        <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
-        <div class="nudges">
-          <button class="btn nudge" data-d="-1">−1s</button>
-          <button class="btn nudge" data-d="-0.5">−0.5s</button>
-          <button class="btn nudge" data-d="0.5">+0.5s</button>
-          <button class="btn nudge" data-d="1">+1s</button>
+        <div class="clip-group" id="start-group">
+          <span class="len-label">Start</span>
+          <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
+          <div class="nudges">
+            <button class="btn nudge" data-d="-1">−1s</button>
+            <button class="btn nudge" data-d="-0.5">−0.5s</button>
+            <button class="btn nudge" data-d="0.5">+0.5s</button>
+            <button class="btn nudge" data-d="1">+1s</button>
+          </div>
         </div>
-        <button class="btn ghost preview-btn" title="Play half a second around the start point to check it">Check start</button>
-      </div>
-      <div class="clip-group" id="length-group">
-        <span class="len-label">Length</span>
-        <button class="btn len-btn" data-d="-0.5">−0.5s</button>
-        <span id="len-val" class="len-val">2.0s</span>
-        <button class="btn len-btn" data-d="0.5">+0.5s</button>
-        <span id="clip-range" class="dim small len-hint"></span>
+        <div class="clip-group" id="end-group">
+          <span class="len-label">End</span>
+          <input id="time-b" class="time-input" placeholder="–:––" autocomplete="off">
+          <div class="nudges">
+            <button class="btn end-nudge" data-d="-0.5">−0.5s</button>
+            <button class="btn end-nudge" data-d="0.5">+0.5s</button>
+          </div>
+          <span id="len-val" class="dim small len-hint">2.0s</span>
+        </div>
       </div>
     </div>
 
