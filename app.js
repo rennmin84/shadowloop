@@ -1388,12 +1388,14 @@ function renderSegmentList(){
     li.title = 'Practice this clip';
     const folder = seg.folder || DEFAULT_FOLDER;
     const len = seg.len != null ? seg.len : round1(seg.b - seg.a);
-    // meta now carries just where + how long; name, status dot and reps live elsewhere
-    const meta = fmtTime(seg.a) + ' · ' + len.toFixed(1) + 's';
+    // headline is the note — the line you're shadowing — falling back to the name
+    const headline = (seg.note && seg.note.trim()) || seg.label || seg.title || 'Clip';
+    // meta: video name · timestamp · length
+    const meta = [escapeHtml(seg.title || seg.videoId), fmtTime(seg.a), len.toFixed(1) + 's'].join(' · ');
     li.innerHTML =
       '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
       '<div class="seg-info">' +
-        '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
+        '<div class="seg-label">' + escapeHtml(headline) + '</div>' +
         '<div class="seg-meta">' + meta + '</div>' +
         '<div class="seg-folder-line">' +
           '<button class="seg-folder-btn" title="Move to another folder or delete" aria-label="Folder and clip actions">' +
