@@ -567,6 +567,7 @@ body[data-playstate="waiting"] .replay-btn{
   width:min(480px, 100%); background:var(--surface); border-radius:20px 20px 0 0;
   padding:20px 18px calc(18px + env(safe-area-inset-bottom));
   box-shadow:var(--shadow-lift); animation:rise .3s cubic-bezier(.2,.7,.2,1);
+  max-height:92vh; max-height:92dvh; overflow-y:auto; overscroll-behavior:contain;
 }
 .modal h3{margin:0 0 14px; font-family:var(--font-display); font-weight:800; letter-spacing:-.01em;}
 .modal-thumb{width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; margin-bottom:14px; background:var(--surface2);}

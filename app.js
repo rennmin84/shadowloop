@@ -1953,6 +1953,12 @@ $('#save-btn').addEventListener('click', openSaveModal);
 $('#modal-cancel').addEventListener('click', closeSaveModal);
 $('#modal-save').addEventListener('click', saveFromModal);
 $('#modal-backdrop').addEventListener('click', e => { if (e.target === e.currentTarget) closeSaveModal(); });
+// ⌘/Ctrl+Enter saves from anywhere in the modal (plain Enter stays a newline
+// in the note textarea); Esc closes it
+$('#modal-backdrop').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); saveFromModal(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); closeSaveModal(); }
+});
 $('#seg-folder').addEventListener('change', () => {
   const isNew = $('#seg-folder').value === '__new__';
   $('#new-folder-field').classList.toggle('hidden', !isNew);
