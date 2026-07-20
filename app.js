@@ -572,6 +572,7 @@ function markStart(){
   let t;
   try { t = player.getCurrentTime(); } catch (e) { return; }
   mark.pending = true;
+  state.currentSegmentId = null;    // tapping ⏺ starts a fresh clip, not an edit of the open one
   setStart(Math.max(0, t - MARK_REACTION));
 }
 function markEnd(){
@@ -863,7 +864,7 @@ function setStart(val){
   const max = state.duration || 36000;
   state.a = clamp(round1(val), 0, max);
   recomputeB();
-  state.currentSegmentId = findMatchingSegmentId();
+  refreshCurrentSegment();
   updateAll();
 }
 function captureStartFromPlayer(){
@@ -880,7 +881,7 @@ function setLen(val){
   state.len = clamp(round1(val), LEN_MIN, LEN_MAX);
   settings.defaultLen = state.len; saveSettings();
   recomputeB();
-  state.currentSegmentId = findMatchingSegmentId();
+  refreshCurrentSegment();
   updateAll();
 }
 function changeLen(delta){ setLen(state.len + delta); }
@@ -891,6 +892,12 @@ function findMatchingSegmentId(){
     s.videoId === state.videoId &&
     Math.abs(s.a - state.a) < 0.35 && Math.abs(s.b - state.b) < 0.35);
   return seg ? seg.id : null;
+}
+// keep editing (and overwriting) an open clip through fine adjustments; only
+// adopt a coincident clip when nothing is currently active (capture mode)
+function refreshCurrentSegment(){
+  if (state.currentSegmentId && segments.some(s => s.id === state.currentSegmentId)) return;
+  state.currentSegmentId = findMatchingSegmentId();
 }
 
 /* ---------------- press-and-hold repeat (nudge buttons) ---------------- */
@@ -964,7 +971,7 @@ function applyStripDrag(t){
     state.len = round1(b - a);
     settings.defaultLen = state.len; saveSettings();
     recomputeB();
-    state.currentSegmentId = findMatchingSegmentId();
+    refreshCurrentSegment();
     updateAll();
   } else if (stripDrag.mode === 'b'){
     setLen(t - state.a);
