@@ -1909,9 +1909,9 @@ document.addEventListener('keydown', e => {
   } else if (k === 'r' || k === 'R' || k === 'Enter'){
     e.preventDefault(); doReplay();
   } else if (k === 'j' || k === 'J'){
-    e.preventDefault(); seekRelative(-1);
+    e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);
   } else if (k === 'l' || k === 'L'){
-    e.preventDefault(); seekRelative(1);
+    e.preventDefault(); seekRelative(e.shiftKey ? 10 : 1);
   } else if (k === 'k' || k === 'K'){
     e.preventDefault();
     if (playerReady){
