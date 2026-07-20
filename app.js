@@ -462,7 +462,8 @@ function segTodayReps(segId){
 }
 
 function defaultLabel(){
-  return (state.title ? state.title + ' ' : '') + fmtTime(state.a) + ' (' + state.len.toFixed(1) + 's)';
+  // the list shows the timestamp + length separately, so the name stays clean
+  return state.title || 'Clip';
 }
 
 function makeSegment(fields = {}){
@@ -1372,24 +1373,22 @@ function renderSegmentList(){
     li.tabIndex = 0;
     li.title = 'Practice this clip';
     const folder = seg.folder || DEFAULT_FOLDER;
-    // meta, most to least important: video name · timestamp · status · reps
-    const meta = [
-      escapeHtml(seg.title || seg.videoId),
-      fmtTime(seg.a),
-      STATUS_WORD[st],
-      seg.reps + (seg.reps === 1 ? ' rep' : ' reps'),
-    ].join(' · ');
+    const len = seg.len != null ? seg.len : round1(seg.b - seg.a);
+    // meta now carries just where + how long; name, status dot and reps live elsewhere
+    const meta = fmtTime(seg.a) + ' · ' + len.toFixed(1) + 's';
     li.innerHTML =
       '<span class="seg-status" data-st="' + st + '" title="' + STATUS_TITLE[st] + '"></span>' +
       '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
       '<div class="seg-info">' +
-        '<div class="seg-label-row">' +
-          '<span class="seg-label">' + escapeHtml(seg.label) + '</span>' +
+        '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
+        '<div class="seg-meta">' + meta + '</div>' +
+        '<div class="seg-folder-line">' +
           '<button class="seg-folder-btn" title="Move to another folder" aria-label="Move to another folder">' +
             '<span class="fb-name">' + escapeHtml(folder) + '</span> ⌄</button>' +
         '</div>' +
-        '<div class="seg-meta">' + meta + '</div>' +
       '</div>' +
+      '<div class="seg-reps" title="Practiced ' + seg.reps + (seg.reps === 1 ? ' time' : ' times') + '">' +
+        '<b>' + seg.reps + '</b><span>reps</span></div>' +
       '<span class="seg-go">▶</span>' +
       '<button class="seg-del" title="Delete clip" aria-label="Delete clip">✕</button>';
     const thumb = li.querySelector('.seg-thumb');
