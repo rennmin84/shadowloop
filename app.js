@@ -893,10 +893,13 @@ function findMatchingSegmentId(){
     Math.abs(s.a - state.a) < 0.35 && Math.abs(s.b - state.b) < 0.35);
   return seg ? seg.id : null;
 }
-// keep editing (and overwriting) an open clip through fine adjustments; only
-// adopt a coincident clip when nothing is currently active (capture mode)
+// Keep an open clip attached through fine re-trims (so adjusting overwrites it
+// instead of saving a copy) as long as the edited range still overlaps it.
+// Once it no longer overlaps — the user scrubbed off to mark a different line —
+// let go, so we don't count reps on, or overwrite, the clip they just saved.
 function refreshCurrentSegment(){
-  if (state.currentSegmentId && segments.some(s => s.id === state.currentSegmentId)) return;
+  const cur = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
+  if (cur && state.a != null && state.b != null && state.b > cur.a && state.a < cur.b) return;
   state.currentSegmentId = findMatchingSegmentId();
 }
 
