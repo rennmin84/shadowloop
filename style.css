@@ -296,7 +296,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   border-color:color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
-.segment-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+/* keep the clips card a stable height so switching folders doesn't jump */
+.segment-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; min-height:340px;}
 /* at-a-glance practice status: green = done today, amber = due, grey = never practiced */
 .seg-status{flex-shrink:0; width:9px; height:9px; border-radius:50%;}
 .seg-status[data-st="done"]{background:var(--accent);}
@@ -312,10 +313,32 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .seg-item:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .seg-thumb{width:74px; height:42px; object-fit:cover; border-radius:8px; flex-shrink:0; background:var(--surface2);}
 .seg-info{flex:1; min-width:0;}
-.seg-label{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.seg-meta{color:var(--text2); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums;}
-.seg-folder{margin-top:4px;}
-.seg-folder span{background:var(--accent-tint); color:var(--accent-deep); border-radius:99px; padding:1px 9px; font-size:11px; font-weight:600;}
+.seg-label-row{display:flex; align-items:center; gap:8px; min-width:0;}
+.seg-label{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.seg-meta{color:var(--text2); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; margin-top:2px;}
+/* inline folder chip — click to move the clip */
+.seg-folder-btn{
+  flex-shrink:0; max-width:44%; display:inline-flex; align-items:center; gap:2px;
+  background:var(--accent-tint); color:var(--accent-deep); border:1px solid transparent;
+  border-radius:99px; padding:2px 9px; font-size:11px; font-weight:700; line-height:1.4;
+}
+.seg-folder-btn .fb-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.seg-folder-btn:hover{border-color:color-mix(in srgb, var(--accent) 35%, transparent); filter:brightness(.98);}
+
+/* folder move menu (floating) */
+.folder-menu{
+  position:absolute; z-index:100; min-width:150px; max-width:240px; max-height:280px; overflow-y:auto;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow-lift); padding:5px; display:flex; flex-direction:column; gap:1px;
+}
+.fm-item{
+  text-align:left; border:none; background:transparent; color:var(--text);
+  border-radius:8px; padding:8px 10px; font-size:13px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fm-item:hover{background:var(--surface2);}
+.fm-item.current{background:var(--accent-tint); color:var(--accent-deep);}
+.fm-item.fm-new{color:var(--accent-deep); border-top:1px solid var(--border); border-radius:0 0 8px 8px; margin-top:3px; padding-top:9px;}
 .seg-go{flex-shrink:0; color:var(--accent); font-size:14px; opacity:0; transition:opacity .15s; padding-right:22px;}
 .seg-item:hover .seg-go{opacity:1;}
 .seg-del{
@@ -556,7 +579,7 @@ body.on-practice .toast-wrap{bottom:calc(86px + env(safe-area-inset-bottom));}
   .folders-pane{position:sticky; top:70px;}
   .folder-list{max-height:calc(100vh - 190px);}
   /* padding gives the hover lift + shadow room; negative margin keeps the list aligned */
-  .segment-list{max-height:calc(100vh - 150px); overflow-y:auto; padding:5px 6px 10px; margin:-5px -6px 0;}
+  .segment-list{height:calc(100vh - 210px); overflow-y:auto; padding:5px 6px 10px; margin:-5px -6px 0;}
   .hero{padding:26px;}
 }
 

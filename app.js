@@ -1254,8 +1254,67 @@ const STATUS_TITLE = {
   new: 'Not practiced yet',
   ok: 'Scheduled — comes back later',
 };
+const STATUS_WORD = { done: 'Done today', due: 'Due', new: 'New', ok: 'Scheduled' };
+
+/* move a clip to another folder (from the inline folder chip) */
+function moveSegment(id, folder){
+  const seg = segments.find(s => s.id === id);
+  if (!seg || (seg.folder || DEFAULT_FOLDER) === folder) return;
+  seg.folder = folder;
+  settings.lastFolder = folder; saveSettings();
+  saveSegments();
+  renderSegmentList();
+  toast('Moved to “' + folder + '”');
+}
+
+let folderMenuEl = null;
+function closeFolderMenu(){
+  if (!folderMenuEl) return;
+  folderMenuEl.remove(); folderMenuEl = null;
+  document.removeEventListener('click', onDocClickFolderMenu, true);
+  window.removeEventListener('resize', closeFolderMenu);
+}
+function onDocClickFolderMenu(e){ if (folderMenuEl && !folderMenuEl.contains(e.target)) closeFolderMenu(); }
+function openFolderMenu(seg, anchor){
+  const open = folderMenuEl;
+  closeFolderMenu();
+  if (open && open.dataset.seg === seg.id) return;   // clicking the same chip toggles it closed
+  const menu = document.createElement('div');
+  menu.className = 'folder-menu';
+  menu.dataset.seg = seg.id;
+  const cur = seg.folder || DEFAULT_FOLDER;
+  allFolders().forEach(name => {
+    const b = document.createElement('button');
+    b.className = 'fm-item' + (name === cur ? ' current' : '');
+    b.textContent = name;
+    b.addEventListener('click', e => { e.stopPropagation(); closeFolderMenu(); moveSegment(seg.id, name); });
+    menu.appendChild(b);
+  });
+  const nw = document.createElement('button');
+  nw.className = 'fm-item fm-new';
+  nw.textContent = '＋ New folder…';
+  nw.addEventListener('click', e => {
+    e.stopPropagation();
+    closeFolderMenu();
+    const name = (prompt('New folder name') || '').trim();
+    if (name){ ensureFolder(name); moveSegment(seg.id, name); }
+  });
+  menu.appendChild(nw);
+
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  const maxLeft = document.documentElement.clientWidth - menu.offsetWidth - 8;
+  menu.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.left + window.scrollX, maxLeft + window.scrollX)) + 'px';
+  folderMenuEl = menu;
+  setTimeout(() => {
+    document.addEventListener('click', onDocClickFolderMenu, true);
+    window.addEventListener('resize', closeFolderMenu);
+  }, 0);
+}
 
 function renderSegmentList(){
+  closeFolderMenu();
   const stats = folderStats();
 
   // ---- folders pane ----
@@ -1312,15 +1371,24 @@ function renderSegmentList(){
     li.setAttribute('role', 'button');
     li.tabIndex = 0;
     li.title = 'Practice this clip';
+    const folder = seg.folder || DEFAULT_FOLDER;
+    // meta, most to least important: video name · timestamp · status · reps
+    const meta = [
+      escapeHtml(seg.title || seg.videoId),
+      fmtTime(seg.a),
+      STATUS_WORD[st],
+      seg.reps + (seg.reps === 1 ? ' rep' : ' reps'),
+    ].join(' · ');
     li.innerHTML =
       '<span class="seg-status" data-st="' + st + '" title="' + STATUS_TITLE[st] + '"></span>' +
       '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
       '<div class="seg-info">' +
-        '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
-        '<div class="seg-meta">' + escapeHtml(seg.title || seg.videoId) + ' · ' +
-          fmtTime(seg.a) + ' · ' + (seg.len != null ? seg.len.toFixed(1) : round1(seg.b - seg.a).toFixed(1)) + 's · ' +
-          seg.reps + ' reps · ' + relTime(seg.lastPracticedAt) + '</div>' +
-        '<div class="seg-folder"><span>' + escapeHtml(seg.folder || DEFAULT_FOLDER) + '</span></div>' +
+        '<div class="seg-label-row">' +
+          '<span class="seg-label">' + escapeHtml(seg.label) + '</span>' +
+          '<button class="seg-folder-btn" title="Move to another folder" aria-label="Move to another folder">' +
+            '<span class="fb-name">' + escapeHtml(folder) + '</span> ⌄</button>' +
+        '</div>' +
+        '<div class="seg-meta">' + meta + '</div>' +
       '</div>' +
       '<span class="seg-go">▶</span>' +
       '<button class="seg-del" title="Delete clip" aria-label="Delete clip">✕</button>';
@@ -1330,6 +1398,8 @@ function renderSegmentList(){
     li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); loadSegment(seg.id); } });
     const del = li.querySelector('.seg-del');
     del.addEventListener('click', e => { e.stopPropagation(); deleteSegment(seg.id); });
+    const fbtn = li.querySelector('.seg-folder-btn');
+    fbtn.addEventListener('click', e => { e.stopPropagation(); openFolderMenu(seg, fbtn); });
     ul.appendChild(li);
   });
 }
