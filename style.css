@@ -351,14 +351,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .fm-item:hover{background:var(--surface2);}
 .fm-item.current{background:var(--accent-tint); color:var(--accent-deep);}
-.fm-item.fm-new{color:var(--accent-deep); border-top:1px solid var(--border); border-radius:0 0 8px 8px; margin-top:3px; padding-top:9px;}
-.seg-del{
-  position:absolute; top:7px; right:7px; width:24px; height:24px; line-height:1;
-  border:none; border-radius:8px; background:transparent; color:var(--text2);
-  font-size:13px; opacity:0; transition:opacity .15s;
-}
-.seg-item:hover .seg-del{opacity:.9;}
-.seg-del:hover{background:var(--danger); color:#fff; opacity:1;}
+.fm-item.fm-new{color:var(--accent-deep); border-top:1px solid var(--border); margin-top:3px; padding-top:9px;}
+.fm-item.fm-del{color:var(--danger); border-top:1px solid var(--border); border-radius:0 0 8px 8px; margin-top:3px; padding-top:9px;}
+.fm-item.fm-del:hover{background:color-mix(in srgb, var(--danger) 12%, var(--surface));}
 .list-empty{color:var(--text2); text-align:center; padding:20px 0; font-size:14px;}
 
 /* ---------- practice ---------- */
@@ -413,20 +408,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
   padding:14px; box-shadow:var(--shadow);
 }
-.clip-group{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+.clip-group{display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
 .clip-hint{margin:0; padding:2px 2px 0;}
 
-/* summary row + collapsible fine-tune panel */
-.clip-summary{display:flex; align-items:center; gap:10px;}
-.clip-summary-text{
-  flex:1; min-width:0; font-family:var(--font-display); font-weight:800; font-size:16px;
-  letter-spacing:-.01em; font-variant-numeric:tabular-nums;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.adjust-panel{
-  display:flex; flex-direction:column; gap:12px;
-  padding-top:12px; border-top:1px dashed var(--border);
-}
+/* always-on fine-tune panel */
+.adjust-panel{display:flex; flex-direction:column; gap:14px;}
 
 /* visual timeline: a zoomed window around the clip */
 .clip-strip{padding:2px 2px 0;}
@@ -462,12 +448,32 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .len-label{
   font-family:var(--font-display); font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
-  color:var(--text2); margin-right:4px; min-width:52px;
+  color:var(--text2); min-width:46px;
 }
-.time-input{width:88px; text-align:center; font-variant-numeric:tabular-nums; padding:9px 4px; font-weight:700;}
-.nudges{display:flex; gap:4px;}
-.nudge,.end-nudge{padding:9px 6px; min-width:46px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
-.len-hint{margin-left:auto;}
+/* the value chip: the focal, editable read-out (accent), set apart from the plain step buttons */
+.clip-group .time-input{
+  width:100px; text-align:center; font-variant-numeric:tabular-nums;
+  font-family:var(--font-display); font-weight:800; font-size:17px; padding:10px 6px;
+  color:var(--accent-deep); background:var(--accent-tint);
+  border:1.5px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius:12px;
+}
+.clip-group .time-input:focus{background:var(--surface); box-shadow:0 0 0 3px var(--accent-soft);}
+/* step buttons: neutral, split into decrease / increase clusters with a gap between */
+.nudges{display:flex; align-items:center; gap:5px; flex-wrap:wrap;}
+.nudge-cluster{display:flex; gap:4px;}
+.nudge-cluster.plus{margin-left:7px;}
+.nudge,.end-nudge{
+  padding:9px 7px; min-width:46px; border-radius:10px; font-weight:700;
+  font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;
+}
+.nudge-cluster.plus .btn{background:var(--surface); border-color:color-mix(in srgb, var(--accent) 22%, var(--border)); color:var(--accent-deep);}
+.nudge-cluster.plus .btn:hover{background:var(--accent-tint);}
+/* clip length read-out, pushed to the far right of the End row */
+.len-pill{
+  margin-left:auto; align-self:center;
+  background:var(--surface2); color:var(--text); border-radius:99px; padding:5px 13px;
+  font-family:var(--font-display); font-weight:800; font-size:14px; font-variant-numeric:tabular-nums;
+}
 
 /* ---------- echo bar: record & compare ---------- */
 .echo-bar{

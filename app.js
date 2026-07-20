@@ -246,7 +246,9 @@ window.onYouTubeIframeAPIReady = function(){
 };
 
 function createPlayer(videoId, start){
-  const pv = { playsinline: 1, rel: 0, controls: 1, start: Math.floor(start || 0) };
+  // disablekb: turn off YouTube's own keyboard (its J/L jump 10s) so our
+  // J/L (1s) is the only thing that answers those keys
+  const pv = { playsinline: 1, rel: 0, controls: 1, disablekb: 1, start: Math.floor(start || 0) };
   // YouTube needs a valid origin/referer, otherwise it throws Error 153. file:// has no origin.
   if (location.protocol === 'http:' || location.protocol === 'https:') {
     pv.origin = location.origin;
@@ -1008,15 +1010,7 @@ function applyStripDrag(t){
 /* ---------------- UI sync ---------------- */
 function renderClipSummary(){
   const has = state.a != null && state.b != null;
-  $('#clip-summary').classList.toggle('hidden', !has);
-  $('#adjust-panel').classList.toggle('hidden', !(has && state.adjustOpen));
-  if (has){
-    $('#clip-summary-text').textContent =
-      fmtTime(state.a, true) + ' → ' + fmtTime(state.b, true) + ' · ' + state.len.toFixed(1) + 's';
-  }
-  const tg = $('#adjust-toggle');
-  tg.textContent = state.adjustOpen ? 'Adjust ⌃' : 'Adjust ⌄';
-  tg.setAttribute('aria-expanded', String(state.adjustOpen));
+  $('#adjust-panel').classList.toggle('hidden', !has);   // panel is always visible once a clip exists
 }
 function updateAll(){
   $('#time-a').value = state.a != null ? fmtTime(state.a, true) : '';
@@ -1309,6 +1303,12 @@ function openFolderMenu(seg, anchor){
   });
   menu.appendChild(nw);
 
+  const del = document.createElement('button');
+  del.className = 'fm-item fm-del';
+  del.textContent = '🗑 Delete clip';
+  del.addEventListener('click', e => { e.stopPropagation(); closeFolderMenu(); deleteSegment(seg.id); });
+  menu.appendChild(del);
+
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();
   const maxLeft = document.documentElement.clientWidth - menu.offsetWidth - 8;
@@ -1389,19 +1389,16 @@ function renderSegmentList(){
         '<div class="seg-label">' + escapeHtml(seg.label) + '</div>' +
         '<div class="seg-meta">' + meta + '</div>' +
         '<div class="seg-folder-line">' +
-          '<button class="seg-folder-btn" title="Move to another folder" aria-label="Move to another folder">' +
+          '<button class="seg-folder-btn" title="Move to another folder or delete" aria-label="Folder and clip actions">' +
             '<span class="fb-name">' + escapeHtml(folder) + '</span> ⌄</button>' +
         '</div>' +
       '</div>' +
       '<div class="seg-reps" data-st="' + st + '" title="' + STATUS_TITLE[st] + ' · practiced ' + seg.reps + (seg.reps === 1 ? ' time' : ' times') + '">' +
-        '<b>' + seg.reps + '</b><span>reps</span></div>' +
-      '<button class="seg-del" title="Delete clip" aria-label="Delete clip">✕</button>';
+        '<b>' + seg.reps + '</b><span>reps</span></div>';
     const thumb = li.querySelector('.seg-thumb');
     thumb.addEventListener('error', () => { thumb.style.display = 'none'; });
     li.addEventListener('click', () => loadSegment(seg.id));
     li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); loadSegment(seg.id); } });
-    const del = li.querySelector('.seg-del');
-    del.addEventListener('click', e => { e.stopPropagation(); deleteSegment(seg.id); });
     const fbtn = li.querySelector('.seg-folder-btn');
     fbtn.addEventListener('click', e => { e.stopPropagation(); openFolderMenu(seg, fbtn); });
     ul.appendChild(li);
@@ -1866,11 +1863,6 @@ $$('.nudge').forEach(btn => {
 $$('.end-nudge').forEach(btn => {
   const d = parseFloat(btn.dataset.d);
   bindHold(btn, () => { changeLen(d); scheduleAudition('b'); });
-});
-$('#adjust-toggle').addEventListener('click', () => {
-  state.adjustOpen = !state.adjustOpen;
-  renderClipSummary();
-  if (state.adjustOpen) renderStrip();
 });
 bindHold($('#skip-back'), () => seekRelative(-1));   // hold to keep stepping
 bindHold($('#skip-fwd'),  () => seekRelative(1));
