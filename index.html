@@ -170,9 +170,9 @@
     </div>
 
     <div class="transport-row">
-      <button id="skip-back" class="btn skip-btn" title="Back 10 seconds (J)">« 10s</button>
-      <p class="dim small transport-hint">Pause anywhere — the start point follows · J / L to jump</p>
-      <button id="skip-fwd" class="btn skip-btn" title="Forward 10 seconds (L)">10s »</button>
+      <button id="skip-back" class="btn skip-btn" title="Back 1 second (J) — hold to keep stepping">« 1s</button>
+      <p class="dim small transport-hint">Line just passed? Step back with « 1s · J / L keys work too</p>
+      <button id="skip-fwd" class="btn skip-btn" title="Forward 1 second (L) — hold to keep stepping">1s »</button>
     </div>
 
     <div class="video-head">
@@ -208,6 +208,8 @@
           <div class="nudges">
             <button class="btn nudge" data-d="-1">−1s</button>
             <button class="btn nudge" data-d="-0.5">−0.5s</button>
+            <button class="btn nudge" data-d="-0.1">−0.1s</button>
+            <button class="btn nudge" data-d="0.1">+0.1s</button>
             <button class="btn nudge" data-d="0.5">+0.5s</button>
             <button class="btn nudge" data-d="1">+1s</button>
           </div>
@@ -216,8 +218,12 @@
           <span class="len-label">End</span>
           <input id="time-b" class="time-input" placeholder="–:––" autocomplete="off">
           <div class="nudges">
+            <button class="btn end-nudge" data-d="-1">−1s</button>
             <button class="btn end-nudge" data-d="-0.5">−0.5s</button>
+            <button class="btn end-nudge" data-d="-0.1">−0.1s</button>
+            <button class="btn end-nudge" data-d="0.1">+0.1s</button>
             <button class="btn end-nudge" data-d="0.5">+0.5s</button>
+            <button class="btn end-nudge" data-d="1">+1s</button>
           </div>
           <span id="len-val" class="dim small len-hint">2.0s</span>
         </div>

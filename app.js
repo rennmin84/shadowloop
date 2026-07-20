@@ -122,7 +122,7 @@ let segments = lsLoad(LS.seg, []);
 let logs     = lsLoad(LS.log, []);
 let settings = Object.assign(
   { dailyGoal: 10, streakFreezes: 0, defaultSpeed: 1, defaultLen: 2, folders: [],
-    syncUrl: '', lastSyncAt: 0, micEnabled: false },
+    lastFolder: '', syncUrl: '', lastSyncAt: 0, micEnabled: false },
   lsLoad(LS.set, {})
 );
 // migrate older segments: ensure folder + len + spaced-repetition fields
@@ -1089,7 +1089,9 @@ function openSaveModal(){
   // folder select
   const sel = $('#seg-folder');
   sel.innerHTML = '';
-  const preferred = seg ? (seg.folder || DEFAULT_FOLDER) : (state.folderFilter || DEFAULT_FOLDER);
+  // new clips default to the folder used on the previous save
+  const preferred = seg ? (seg.folder || DEFAULT_FOLDER)
+                        : (settings.lastFolder || state.folderFilter || DEFAULT_FOLDER);
   allFolders().forEach(name => {
     const o = document.createElement('option');
     o.value = name; o.textContent = name;
@@ -1122,6 +1124,7 @@ function saveFromModal(){
   const label  = $('#seg-label').value.trim() || defaultLabel();
   const note   = $('#seg-note').value.trim();
   const folder = resolveFolderFromModal();
+  settings.lastFolder = folder; saveSettings();
   let seg = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
   if (seg){
     Object.assign(seg, { label, note, folder, a: state.a, b: state.b, len: state.len, title: state.title || seg.title });
@@ -1795,8 +1798,8 @@ $('#adjust-toggle').addEventListener('click', () => {
   renderClipSummary();
   if (state.adjustOpen) renderStrip();
 });
-$('#skip-back').addEventListener('click', () => seekRelative(-10));
-$('#skip-fwd').addEventListener('click', () => seekRelative(10));
+bindHold($('#skip-back'), () => seekRelative(-1));   // hold to keep stepping
+bindHold($('#skip-fwd'),  () => seekRelative(1));
 
 // echo: record & compare
 $('#mic-toggle').addEventListener('click', async () => {
@@ -1906,9 +1909,9 @@ document.addEventListener('keydown', e => {
   } else if (k === 'r' || k === 'R' || k === 'Enter'){
     e.preventDefault(); doReplay();
   } else if (k === 'j' || k === 'J'){
-    e.preventDefault(); seekRelative(-10);
+    e.preventDefault(); seekRelative(-1);
   } else if (k === 'l' || k === 'L'){
-    e.preventDefault(); seekRelative(10);
+    e.preventDefault(); seekRelative(1);
   } else if (k === 'k' || k === 'K'){
     e.preventDefault();
     if (playerReady){
