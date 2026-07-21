@@ -158,6 +158,7 @@ const DEFAULT_FOLDER = 'Uncategorized';
 /* ---------------- app state ---------------- */
 const state = {
   videoId: null,
+  audioUrl: null,              // set instead of videoId for podcast/mp3 sources
   url: '',
   title: '',
   duration: 0,
@@ -224,6 +225,42 @@ let player = null, ytApiLoading = false, playerReady = false;
 let pollTimer = null;
 let programmaticPause = false;   // suppress start-capture on preview/replay-end pauses
 
+/* ---------------- media facade (YouTube video OR podcast audio) ----------------
+   Both sources drive the same clip / replay / rep machinery through these
+   wrappers, so the rest of the app never has to branch on which is playing. */
+let mediaKind = 'yt';            // 'yt' | 'audio'
+let audioEl = null;              // the <audio> element when mediaKind === 'audio'
+let audioPendingSeek = null;     // seek to apply once the audio's duration is known
+
+function hasSource(){ return !!(state.videoId || state.audioUrl); }
+
+function mediaPlaying(){
+  if (mediaKind === 'audio') return !!audioEl && !audioEl.paused && !audioEl.ended;
+  try { const s = player.getPlayerState(); return s === YT.PlayerState.PLAYING || s === YT.PlayerState.BUFFERING; }
+  catch (e) { return false; }
+}
+function mediaTime(){
+  if (mediaKind === 'audio') return audioEl ? audioEl.currentTime : 0;
+  try { return player.getCurrentTime(); } catch (e) { return 0; }
+}
+function mediaSeek(t){
+  t = Math.max(0, t);
+  if (mediaKind === 'audio'){ if (audioEl) audioEl.currentTime = t; return; }
+  try { player.seekTo(t, true); } catch (e) {}
+}
+function mediaPlay(){
+  if (mediaKind === 'audio'){ if (audioEl) audioEl.play().catch(() => {}); return; }
+  try { player.playVideo(); } catch (e) {}
+}
+function mediaPause(){
+  if (mediaKind === 'audio'){ if (audioEl) audioEl.pause(); return; }
+  try { player.pauseVideo(); } catch (e) {}
+}
+function mediaSetRate(r){
+  if (mediaKind === 'audio'){ if (audioEl) audioEl.playbackRate = r; return; }
+  try { player.setPlaybackRate(r); } catch (e) {}
+}
+
 function loadYTApi(){
   if (window.YT && window.YT.Player) return true;
   if (!ytApiLoading){
@@ -268,10 +305,14 @@ function createPlayer(videoId, start){
 
 function loadVideo(videoId, start = 0){
   cancelMark();
+  mediaKind = 'yt';
+  if (audioEl){ try { audioEl.pause(); } catch (e) {} }
+  state.audioUrl = null;
   state.videoId = videoId;
   state.url = 'https://www.youtube.com/watch?v=' + videoId;
   state.title = '';
   state.duration = 0;
+  setMediaMode('yt');
   $('#player-placeholder').classList.add('hidden');
   $('#video-title').textContent = '';
 
@@ -288,12 +329,71 @@ function loadVideo(videoId, start = 0){
   updateAll();
 }
 
+/* ---------------- podcast / mp3 audio source ---------------- */
+function setMediaMode(kind){
+  const wrap = $('#player-wrap');
+  if (wrap) wrap.classList.toggle('audio-mode', kind === 'audio');
+  if (audioEl) audioEl.classList.toggle('hidden', kind !== 'audio');
+  const frame = $('#player');
+  if (frame) frame.classList.toggle('hidden', kind === 'audio');
+}
+function ensureAudioEl(){
+  if (audioEl) return audioEl;
+  audioEl = document.createElement('audio');
+  audioEl.id = 'audio-el';
+  audioEl.className = 'audio-player hidden';
+  audioEl.controls = true;
+  audioEl.preload = 'metadata';
+  audioEl.setAttribute('playsinline', '');
+  const wrap = $('#player-wrap');
+  wrap.insertBefore(audioEl, $('#player-placeholder'));
+
+  const setDur = () => { if (isFinite(audioEl.duration) && audioEl.duration > 0) state.duration = audioEl.duration; };
+  audioEl.addEventListener('loadedmetadata', () => {
+    setDur();
+    playerReady = true;
+    if (audioPendingSeek != null){ audioEl.currentTime = Math.max(0, audioPendingSeek); audioPendingSeek = null; }
+    updateAll();
+  });
+  audioEl.addEventListener('durationchange', setDur);
+  audioEl.addEventListener('playing', () => { if (mediaKind === 'audio') onMediaPlaying(); });
+  audioEl.addEventListener('pause',   () => { if (mediaKind === 'audio') onMediaPaused(); });
+  audioEl.addEventListener('waiting', () => { if (mediaKind === 'audio') onMediaBuffering(); });
+  audioEl.addEventListener('ended',   () => { if (mediaKind === 'audio') onMediaEnded(); });
+  audioEl.addEventListener('error',   () => {
+    if (mediaKind !== 'audio') return;
+    playerReady = false;
+    toast("Couldn't load that audio — use a direct .mp3 link, not a web page", { duration: 7000 });
+  });
+  return audioEl;
+}
+function loadAudio(url, start = 0){
+  cancelMark();
+  mediaKind = 'audio';
+  try { if (player) player.pauseVideo(); } catch (e) {}   // silence any YouTube video
+  state.videoId = null;
+  state.audioUrl = url;
+  state.url = url;
+  state.title = 'Audio track';
+  state.duration = 0;
+  playerReady = false;
+  audioPendingSeek = start || 0;
+  ensureAudioEl();
+  setMediaMode('audio');
+  $('#player-placeholder').classList.add('hidden');
+  $('#video-title').textContent = '🎧 Audio track';
+  audioEl.src = url;
+  audioEl.load();
+  updateAll();
+}
+
 function onPlayerReady(){
   playerReady = true;
   refreshVideoMeta();
   updateAll();
 }
 function refreshVideoMeta(){
+  if (mediaKind === 'audio') return;
   if (!player || !playerReady) return;
   try {
     const d = player.getDuration();
@@ -303,53 +403,59 @@ function refreshVideoMeta(){
   } catch (e) {}
 }
 
+/* Both YouTube and <audio> feed these shared transitions. YouTube dispatches
+   through onPlayerStateChange; the audio element wires its events straight in. */
+function onMediaPlaying(){
+  // resuming from pause: paused > 10s invalidates this rep
+  if (rep.armed && rep.pauseStart != null){
+    if (performance.now() - rep.pauseStart > 10000) invalidateRep();
+    rep.pauseStart = null;
+  }
+  rep.lastT = null; rep.lastWall = null;    // reset baseline so pause/buffer isn't mistaken for a seek
+  stopPausedPoll();
+  startPoll();
+  if (rep.armed) setPlayVisual('playing');
+  else if (!rep.preview) setPlayVisual('watching');   // free playback: main button becomes tap-to-mark
+}
+function onMediaPaused(){
+  if (rep.armed) rep.pauseStart = performance.now();
+  rep.lastT = null; rep.lastWall = null;
+  stopPoll();
+  // 1a: capture the current time as the clip start on a manual pause,
+  // unless this pause was programmatic (preview end / replay finished).
+  if (!rep.armed && !rep.preview && !programmaticPause){
+    if (mark.pending) finishMarkAtPause();   // pausing mid-mark: the pause is the end
+    else captureStartFromPlayer();
+  }
+  programmaticPause = false;
+  // while paused, keep watching the playhead: seeking on the paused
+  // timeline moves the clip start along with it
+  startPausedPoll();
+  if (!rep.armed && document.body.dataset.playstate !== 'waiting') setPlayVisual('idle');
+}
+function onMediaBuffering(){
+  rep.lastT = null; rep.lastWall = null;    // buffering time isn't counted and isn't a seek
+  stopPausedPoll();
+}
+function onMediaEnded(){
+  stopPoll();
+  stopPausedPoll();
+  cancelMark();
+  if (rep.armed && state.b != null && state.duration && state.b >= state.duration - 0.6){
+    handleReachB();
+  } else {
+    disarmRep();
+    setPlayVisual('idle');
+  }
+}
+
 function onPlayerStateChange(ev){
   const S = YT.PlayerState;
   refreshVideoMeta();
-
-  if (ev.data === S.PLAYING){
-    // resuming from pause: paused > 10s invalidates this rep
-    if (rep.armed && rep.pauseStart != null){
-      if (performance.now() - rep.pauseStart > 10000) invalidateRep();
-      rep.pauseStart = null;
-    }
-    rep.lastT = null; rep.lastWall = null;    // reset baseline so pause/buffer isn't mistaken for a seek
-    stopPausedPoll();
-    startPoll();
-    if (rep.armed) setPlayVisual('playing');
-    else if (!rep.preview) setPlayVisual('watching');   // free playback: main button becomes tap-to-mark
-  }
-  else if (ev.data === S.PAUSED){
-    if (rep.armed) rep.pauseStart = performance.now();
-    rep.lastT = null; rep.lastWall = null;
-    stopPoll();
-    // 1a: capture the current time as the clip start on a manual pause,
-    // unless this pause was programmatic (preview end / replay finished).
-    if (!rep.armed && !rep.preview && !programmaticPause){
-      if (mark.pending) finishMarkAtPause();   // pausing mid-mark: the pause is the end
-      else captureStartFromPlayer();
-    }
-    programmaticPause = false;
-    // while paused, keep watching the playhead: seeking on the paused
-    // timeline moves the clip start along with it
-    startPausedPoll();
-    if (!rep.armed && document.body.dataset.playstate !== 'waiting') setPlayVisual('idle');
-  }
-  else if (ev.data === S.BUFFERING){
-    rep.lastT = null; rep.lastWall = null;    // buffering time isn't counted and isn't a seek
-    stopPausedPoll();
-  }
-  else if (ev.data === S.ENDED){
-    stopPoll();
-    stopPausedPoll();
-    cancelMark();
-    if (rep.armed && state.b != null && state.duration && state.b >= state.duration - 0.6){
-      handleReachB();
-    } else {
-      disarmRep();
-      setPlayVisual('idle');
-    }
-  }
+  if (ev.data === S.PLAYING) onMediaPlaying();
+  else if (ev.data === S.PAUSED) onMediaPaused();
+  else if (ev.data === S.BUFFERING) onMediaBuffering();
+  else if (ev.data === S.ENDED) onMediaEnded();
   else if (ev.data === S.CUED){
     refreshVideoMeta();
     stopPoll();
@@ -365,7 +471,7 @@ function onPlayerStateChange(ev){
 let pausedPollTimer = null, pausedLastT = null;
 function startPausedPoll(){
   if (pausedPollTimer) return;
-  try { pausedLastT = player.getCurrentTime(); } catch (e) { pausedLastT = null; }
+  pausedLastT = mediaTime();
   pausedPollTimer = setInterval(pausedTick, 300);
 }
 function stopPausedPoll(){
@@ -373,10 +479,9 @@ function stopPausedPoll(){
   pausedLastT = null;
 }
 function pausedTick(){
-  if (!player || !playerReady) return;
-  let st, t;
-  try { st = player.getPlayerState(); t = player.getCurrentTime(); } catch (e) { return; }
-  if (st !== YT.PlayerState.PAUSED) return;
+  if (!playerReady) return;
+  if (mediaPlaying()) return;
+  const t = mediaTime();
   if (pausedLastT != null && Math.abs(t - pausedLastT) > 0.25){
     setStart(t);
     if (document.body.dataset.playstate === 'waiting') setPlayVisual('idle');
@@ -394,9 +499,8 @@ function stopPoll(){
   if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
 }
 function pollTick(){
-  if (!player || !playerReady) return;
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { return; }
+  if (!playerReady) return;
+  const t = mediaTime();
   const now = performance.now();
 
   if (rep.armed){
@@ -425,7 +529,7 @@ function pollTick(){
     if (t >= rep.preview.end){
       rep.preview = null;
       programmaticPause = true;
-      try { player.pauseVideo(); } catch (e) {}
+      mediaPause();
       setPlayVisual('idle');
       if (abPending){ abPending = false; playMine(); }
     }
@@ -449,7 +553,7 @@ function handleReachB(){
   const valid = repIsValid();
   disarmRep();
   programmaticPause = true;
-  try { player.pauseVideo(); } catch (e) {}
+  mediaPause();
   if (valid) countRep();
   setPlayVisual('waiting');   // stopped = your turn to speak
   startTake();                // echo: record the user's shadowing attempt
@@ -477,6 +581,7 @@ function makeSegment(fields = {}){
     schemaVersion: 2,
     id: uuid(),
     videoId: state.videoId,
+    audioUrl: state.audioUrl,         // set instead of videoId for mp3/podcast clips
     url: state.url,
     title: state.title,
     a: state.a, b: state.b, len: state.len,
@@ -519,7 +624,7 @@ function countRep(){
 
 /* ---------------- playback actions ---------------- */
 function doReplay(){
-  if (!playerReady || !state.videoId){ toast('Load a video first'); return; }
+  if (!playerReady || !hasSource()){ toast('Load a video or audio track first'); return; }
   if (state.a == null || state.b == null || state.b <= state.a){
     toast('Mark a start point first'); return;
   }
@@ -529,11 +634,9 @@ function doReplay(){
   if (rec.recorder) stopTake(false);
   if (settings.micEnabled) ensureMic();   // warm the mic up so recording can start at the pause
   armRep();
-  try {
-    player.setPlaybackRate(1);
-    player.seekTo(state.a, true);
-    player.playVideo();
-  } catch (e) {}
+  mediaSetRate(1);
+  mediaSeek(state.a);
+  mediaPlay();
   setPlayVisual('playing');
 }
 
@@ -545,15 +648,13 @@ const MARK_REACTION = 0.35;   // people tap about a beat after the line begins
 
 function markStart(){
   if (!playerReady) return;
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { return; }
+  const t = mediaTime();
   mark.pending = true;
   state.currentSegmentId = null;    // tapping ⏺ starts a fresh clip, not an edit of the open one
   setStart(Math.max(0, t - MARK_REACTION));
 }
 function markEnd(){
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { cancelMark(); return; }
+  const t = mediaTime();
   mark.pending = false;
   setLen(round1(t - 0.1) - state.a);
   toast('Clip set — listen, then hit Replay');
@@ -566,8 +667,7 @@ function cancelMark(){
   updateRepButton(false);
 }
 function finishMarkAtPause(){
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { cancelMark(); return; }
+  const t = mediaTime();
   mark.pending = false;
   if (state.a != null && t > state.a + LEN_MIN){
     setLen(round1(t) - state.a);   // the pause point is the end
@@ -603,11 +703,9 @@ function auditionEdge(edge){
   const from = edge === 'b' ? Math.max(state.a, state.b - 0.8) : state.a;
   const to   = edge === 'b' ? state.b : Math.min(state.b, state.a + 0.8);
   rep.preview = { end: to };
-  try {
-    player.setPlaybackRate(1);
-    player.seekTo(from, true);
-    player.playVideo();
-  } catch (e) {}
+  mediaSetRate(1);
+  mediaSeek(from);
+  mediaPlay();
 }
 
 function setPlayVisual(mode){
@@ -616,15 +714,14 @@ function setPlayVisual(mode){
 }
 
 function seekRelative(delta){
-  if (!playerReady || !state.videoId){ toast('Load a video first'); return; }
-  let t, st;
-  try { t = player.getCurrentTime(); st = player.getPlayerState(); } catch (e) { return; }
+  if (!playerReady || !hasSource()){ toast('Load a video or audio track first'); return; }
+  const t = mediaTime();
+  const playing = mediaPlaying();
   if (rep.armed) disarmRep();
   rep.preview = null;
   cancelMark();
   const target = clamp(round1(t + delta), 0, state.duration || 36000);
-  try { player.seekTo(target, true); } catch (e) {}
-  const playing = st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING;
+  mediaSeek(target);
   if (!playing){
     // paused jump: move the clip start along with the playhead
     setStart(target);
@@ -797,14 +894,9 @@ function loadTakeFor(segId){
 
 function playMine(){
   if (!rec.takeUrl){ toast('No take yet — hit Replay, then speak'); return; }
-  if (playerReady){
-    try {
-      const st = player.getPlayerState();
-      if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING){
-        programmaticPause = true;
-        player.pauseVideo();
-      }
-    } catch (e) {}
+  if (playerReady && mediaPlaying()){
+    programmaticPause = true;
+    mediaPause();
   }
   takeAudio.src = rec.takeUrl;
   takeAudio.currentTime = 0;
@@ -822,11 +914,9 @@ function playOriginalClip(){
   if (rec.recorder) stopTake(false);
   disarmRep();
   rep.preview = { end: state.b };
-  try {
-    player.setPlaybackRate(1);
-    player.seekTo(state.a, true);
-    player.playVideo();
-  } catch (e) {}
+  mediaSetRate(1);
+  mediaSeek(state.a);
+  mediaPlay();
 }
 
 /* ---------------- start + length model ---------------- */
@@ -845,9 +935,7 @@ function setStart(val){
 }
 function captureStartFromPlayer(){
   if (!playerReady) return;
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { return; }
-  setStart(round1(t));
+  setStart(round1(mediaTime()));
 }
 function nudgeStart(delta){
   if (state.a == null){ toast('Pause the video at a start point first'); return; }
@@ -862,10 +950,15 @@ function setLen(val){
 }
 function changeLen(delta){ setLen(state.len + delta); }
 
+function sameSource(seg){
+  if (state.videoId) return seg.videoId === state.videoId;
+  if (state.audioUrl) return seg.audioUrl === state.audioUrl;
+  return false;
+}
 function findMatchingSegmentId(){
-  if (state.a == null || state.b == null || !state.videoId) return null;
+  if (state.a == null || state.b == null || !hasSource()) return null;
   const seg = segments.find(s =>
-    s.videoId === state.videoId &&
+    sameSource(s) &&
     Math.abs(s.a - state.a) < 0.35 && Math.abs(s.b - state.b) < 0.35);
   return seg ? seg.id : null;
 }
@@ -932,8 +1025,7 @@ function renderStrip(){
 function renderStripPlayhead(){
   const ph = $('#strip-playhead');
   if (!strip.win || !playerReady){ ph.classList.add('hidden'); return; }
-  let t;
-  try { t = player.getCurrentTime(); } catch (e) { ph.classList.add('hidden'); return; }
+  const t = mediaTime();
   const { t0, t1 } = strip.win;
   if (t == null || isNaN(t) || t < t0 || t > t1){ ph.classList.add('hidden'); return; }
   ph.classList.remove('hidden');
@@ -1056,7 +1148,7 @@ function ensureFolder(name){
 
 /* ---------------- clip CRUD ---------------- */
 function openSaveModal(){
-  if (state.a == null || state.b == null || !state.videoId){
+  if (state.a == null || state.b == null || !hasSource()){
     toast('Mark a start point first'); return;
   }
   const seg = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
@@ -1154,18 +1246,22 @@ function loadSegment(id){
     state.currentSegmentId = seg.id;
     updateAll();
   };
-  if (state.videoId !== seg.videoId){
-    loadVideo(seg.videoId, Math.max(0, seg.a - 0.5));
+  const isAudio = !!seg.audioUrl;
+  const already = isAudio ? (state.audioUrl === seg.audioUrl) : (state.videoId === seg.videoId);
+  if (!already){
+    if (isAudio) loadAudio(seg.audioUrl, Math.max(0, seg.a - 0.5));
+    else loadVideo(seg.videoId, Math.max(0, seg.a - 0.5));
     apply();
   } else {
     apply();
-    if (playerReady){ try { player.seekTo(seg.a, true); player.pauseVideo(); } catch (e) {} }
+    if (playerReady){ mediaSeek(seg.a); mediaPause(); }
   }
 }
 
 function shareSegment(seg){
   const u = new URL(location.origin + location.pathname);
-  u.searchParams.set('v', seg.videoId);
+  if (seg.audioUrl) u.searchParams.set('au', seg.audioUrl);
+  else u.searchParams.set('v', seg.videoId);
   u.searchParams.set('a', seg.a);
   u.searchParams.set('b', seg.b);
   if (seg.label) u.searchParams.set('label', seg.label);
@@ -1362,10 +1458,14 @@ function renderSegmentList(){
     const len = seg.len != null ? seg.len : round1(seg.b - seg.a);
     // headline is the note — the line you're shadowing — falling back to the name
     const headline = (seg.note && seg.note.trim()) || seg.label || seg.title || 'Clip';
-    // meta: video name · timestamp · length
-    const meta = [escapeHtml(seg.title || seg.videoId), fmtTime(seg.a), len.toFixed(1) + 's'].join(' · ');
+    // meta: source name · timestamp · length
+    const meta = [escapeHtml(seg.title || seg.videoId || 'Audio'), fmtTime(seg.a), len.toFixed(1) + 's'].join(' · ');
+    const tUrl = thumbUrl(seg.videoId);
+    const thumbHtml = tUrl
+      ? '<img class="seg-thumb" src="' + tUrl + '" alt="">'
+      : '<div class="seg-thumb seg-thumb-audio" aria-hidden="true">🎧</div>';
     li.innerHTML =
-      '<img class="seg-thumb" src="' + thumbUrl(seg.videoId) + '" alt="">' +
+      thumbHtml +
       '<div class="seg-info">' +
         '<div class="seg-label">' + escapeHtml(headline) + '</div>' +
         '<div class="seg-meta">' + meta + '</div>' +
@@ -1376,8 +1476,8 @@ function renderSegmentList(){
       '</div>' +
       '<div class="seg-reps" data-st="' + st + '" title="' + STATUS_TITLE[st] + ' · practiced ' + seg.reps + (seg.reps === 1 ? ' time' : ' times') + '">' +
         '<b>' + seg.reps + '</b><span>reps</span></div>';
-    const thumb = li.querySelector('.seg-thumb');
-    thumb.addEventListener('error', () => { thumb.style.display = 'none'; });
+    const thumb = li.querySelector('img.seg-thumb');
+    if (thumb) thumb.addEventListener('error', () => { thumb.style.display = 'none'; });
     li.addEventListener('click', () => loadSegment(seg.id));
     li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); loadSegment(seg.id); } });
     const fbtn = li.querySelector('.seg-folder-btn');
@@ -1756,14 +1856,34 @@ function showView(which){
 }
 
 /* ---------------- event wiring ---------------- */
-function handleUrlInput(inputEl){
-  const parsed = parseYouTubeUrl(inputEl.value);
-  if (!parsed){ toast('Could not read that link — paste a YouTube video URL'); return; }
-  inputEl.value = '';
+// A direct audio file (.mp3/.m4a…) or a known podcast host, even with the
+// tracking query string NPR/Spotify/Podtrac wrap around the real mp3.
+function looksLikeAudioUrl(s){
+  if (!/^https?:\/\//i.test(s)) return false;
+  if (/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)(\?|#|$)/i.test(s)) return true;
+  return /(podtrac|simplecastaudio|megaphone|libsyn|buzzsprout|acast|art19|npr\.org|byspotify|chrt\.fm|swap\.fm|pdst\.fm)/i.test(s);
+}
+function resetForNewSource(){
   state.a = null; state.b = null; state.currentSegmentId = null;
   clearTake();
   showView('practice');
-  loadVideo(parsed.videoId, parsed.start);
+}
+function handleUrlInput(inputEl){
+  const raw = inputEl.value.trim();
+  const parsed = parseYouTubeUrl(raw);
+  if (parsed){
+    inputEl.value = '';
+    resetForNewSource();
+    loadVideo(parsed.videoId, parsed.start);
+    return;
+  }
+  if (looksLikeAudioUrl(raw)){
+    inputEl.value = '';
+    resetForNewSource();
+    loadAudio(raw, 0);
+    return;
+  }
+  toast('Could not read that link — paste a YouTube URL or a direct .mp3 podcast link');
 }
 [['#url-load-hero', '#url-input-hero'],
  ['#url-load-practice', '#url-input-practice'],
@@ -1900,28 +2020,15 @@ document.addEventListener('keydown', e => {
   if ($('#view-practice').classList.contains('hidden')) return;
 
   const k = e.key;
-  if (k === ' '){
+  if (k === ' ' || k === 'k' || k === 'K'){
     e.preventDefault();
-    if (playerReady){
-      try {
-        if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-        else player.playVideo();
-      } catch (err) {}
-    }
+    if (playerReady){ if (mediaPlaying()) mediaPause(); else mediaPlay(); }
   } else if (k === 'r' || k === 'R' || k === 'Enter'){
     e.preventDefault(); doReplay();
   } else if (k === 'j' || k === 'J'){
     e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);
   } else if (k === 'l' || k === 'L'){
     e.preventDefault(); seekRelative(e.shiftKey ? 10 : 1);
-  } else if (k === 'k' || k === 'K'){
-    e.preventDefault();
-    if (playerReady){
-      try {
-        if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-        else player.playVideo();
-      } catch (err) {}
-    }
   } else if (k === 'ArrowLeft' || k === 'ArrowRight'){
     e.preventDefault();
     const step = (e.shiftKey ? 1 : 0.5) * (k === 'ArrowLeft' ? -1 : 1);
@@ -1947,12 +2054,16 @@ window.addEventListener('blur', () => {
 function bootFromParams(){
   const q = new URLSearchParams(location.search);
   const v = q.get('v');
-  if (!v || !/^[A-Za-z0-9_-]{11}$/.test(v)) return false;
+  const au = q.get('au');
+  const isYt = v && /^[A-Za-z0-9_-]{11}$/.test(v);
+  const isAudio = au && looksLikeAudioUrl(au);
+  if (!isYt && !isAudio) return false;
   const a = parseFloat(q.get('a'));
   const b = parseFloat(q.get('b'));
-  const label = q.get('label') || '';
   showView('practice');
-  loadVideo(v, isNaN(a) ? 0 : Math.max(0, a - 0.5));
+  const start = isNaN(a) ? 0 : Math.max(0, a - 0.5);
+  if (isAudio) loadAudio(au, start);
+  else loadVideo(v, start);
   if (!isNaN(a)) state.a = round1(a);
   if (!isNaN(b) && !isNaN(a)) state.len = clamp(round1(b - a), LEN_MIN, LEN_MAX);
   recomputeB();

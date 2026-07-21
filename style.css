@@ -369,6 +369,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   background:#000; border-radius:14px; overflow:hidden; aspect-ratio:16/9; box-shadow:var(--shadow-lift);
 }
 .player-wrap iframe,#player{width:100%; height:100%; border:0;}
+
+/* podcast / mp3 source: the same frame becomes a simple audio stage */
+.player-wrap.audio-mode{
+  aspect-ratio:auto; background:var(--surface2);
+  display:flex; align-items:center; justify-content:center; gap:12px;
+  padding:22px 16px calc(22px + env(safe-area-inset-bottom));
+}
+.player-wrap.audio-mode::before{ content:"🎧"; font-size:30px; line-height:1; }
+.audio-player{ width:100%; max-width:520px; }
+.audio-player.hidden{ display:none; }
+.seg-thumb-audio{ display:flex; align-items:center; justify-content:center; font-size:22px; }
 .player-placeholder{
   position:absolute; inset:0; display:flex; flex-direction:column; gap:12px;
   align-items:center; justify-content:center; background:var(--surface2); color:var(--text2);
