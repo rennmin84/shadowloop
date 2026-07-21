@@ -1181,14 +1181,13 @@ function shareSegment(seg){
 
 /* ---------------- clip list (two-pane) ---------------- */
 function folderStats(){
-  const counts = {}, reps = {}, last = {};
+  const counts = {}, last = {};
   segments.forEach(s => {
     const f = s.folder || DEFAULT_FOLDER;
     counts[f] = (counts[f] || 0) + 1;
-    reps[f]   = (reps[f]   || 0) + (s.reps || 0);
     last[f]   = Math.max(last[f] || 0, s.lastPracticedAt || s.createdAt || 0);
   });
-  return { counts, reps, last };
+  return { counts, last };
 }
 
 function orderedFolders(stats){
@@ -1323,19 +1322,18 @@ function renderSegmentList(){
   const fl = $('#folder-list');
   if (fl){
     fl.innerHTML = '';
-    const mkRow = (label, value, count, reps) => {
+    const mkRow = (label, value, count) => {
       const li = document.createElement('li');
       li.className = 'folder-row' + (state.folderFilter === value ? ' active' : '');
       li.innerHTML =
         '<span class="fr-name">' + escapeHtml(label) + '</span>' +
-        '<span class="fr-meta">' + count + (reps != null ? ' · ' + reps + '↻' : '') + '</span>';
+        '<span class="fr-meta">' + count + '</span>';
       li.addEventListener('click', () => { state.folderFilter = value; renderSegmentList(); });
       fl.appendChild(li);
     };
-    const totalReps = segments.reduce((s, x) => s + (x.reps || 0), 0);
-    mkRow('All', null, segments.length, totalReps);
+    mkRow('All', null, segments.length);
     orderedFolders(stats).forEach(name =>
-      mkRow(name, name, stats.counts[name] || 0, stats.reps[name] || 0));
+      mkRow(name, name, stats.counts[name] || 0));
   }
 
   // ---- clips pane ----
