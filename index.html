@@ -44,8 +44,8 @@
   <!-- hero: today's mission + add a video -->
   <section class="hero" id="hero-card">
     <div class="hero-main">
-      <p class="eyebrow">Today's practice</p>
-      <h1 class="hero-title">What are you shadowing today?</h1>
+      <p class="eyebrow" id="hero-greeting">Today's practice</p>
+      <h1 class="hero-title" id="hero-title">What are you shadowing today?</h1>
       <div class="hero-row">
         <input id="url-input-hero" type="url" inputmode="url" placeholder="Paste a YouTube link" autocomplete="off">
         <button id="url-load-hero" class="btn accent hero-go">Load</button>
@@ -62,19 +62,6 @@
       </div>
       <div class="hero-stat-sub">reps today</div>
       <div class="hero-streak">🔥 <b id="streak-days">0</b><span class="dim"> day streak</span> <span id="freeze-badge" class="freeze hidden">❄️×<span id="freeze-count">0</span></span></div>
-    </div>
-  </section>
-
-  <!-- today's review queue (spaced repetition) -->
-  <section id="review-section" class="home-sec hidden">
-    <p class="eyebrow">Review queue</p>
-    <div class="card review-card">
-      <div class="review-badge" id="review-badge"><b id="due-count">0</b><span id="due-word">due</span></div>
-      <div class="review-info">
-        <div class="review-title" id="review-title">Today's review</div>
-        <div class="review-sub dim small" id="review-sub"></div>
-      </div>
-      <button id="start-review" class="btn accent review-go">Start</button>
     </div>
   </section>
 
@@ -134,12 +121,6 @@
           <option value="name">A–Z</option>
         </select>
       </div>
-      <div id="clip-filters" class="chip-row" role="group" aria-label="Filter clips">
-        <button class="fchip active" data-f="all">All</button>
-        <button class="fchip" data-f="due">Due <b>0</b></button>
-        <button class="fchip" data-f="new">New <b>0</b></button>
-        <button class="fchip" data-f="done">Done today <b>0</b></button>
-      </div>
       <ul id="segment-list" class="segment-list"></ul>
       <p id="segment-list-empty" class="list-empty hidden">No clips here yet. Load a video, set a start, then hit Save.</p>
     </section>
@@ -149,15 +130,6 @@
 <!-- ============ Practice ============ -->
 <main id="view-practice" class="view hidden">
   <div class="practice-layout">
-    <div id="queue-bar" class="queue-bar hidden">
-      <span class="queue-chip">Review</span>
-      <span id="queue-progress" class="queue-progress">1 / 5</span>
-      <div id="queue-dots" class="queue-dots"></div>
-      <span id="queue-rep" class="queue-rep dim small"></span>
-      <button id="queue-skip" class="text-btn" title="Skip to the next due clip">Skip ›</button>
-      <button id="queue-exit" class="text-btn queue-exit" title="Exit review">✕</button>
-    </div>
-
     <div id="player-wrap" class="player-wrap">
       <div id="player"></div>
       <div id="player-placeholder" class="player-placeholder">
@@ -260,6 +232,10 @@
 <main id="view-settings" class="view hidden">
   <p class="eyebrow">Settings</p>
   <section class="card settings-card">
+    <div class="setting-row">
+      <label for="name-input">Your name</label>
+      <input id="name-input" type="text" maxlength="30" autocomplete="off" placeholder="Eric">
+    </div>
     <div class="setting-row">
       <label for="goal-input">Daily goal</label>
       <div><input id="goal-input" type="number" min="1" max="500" step="1"> <span class="dim">reps</span></div>

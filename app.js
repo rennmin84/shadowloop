@@ -122,7 +122,7 @@ let segments = lsLoad(LS.seg, []);
 let logs     = lsLoad(LS.log, []);
 let settings = Object.assign(
   { dailyGoal: 10, streakFreezes: 0, defaultSpeed: 1, defaultLen: 2, folders: [],
-    lastFolder: '', syncUrl: '', lastSyncAt: 0, micEnabled: false },
+    lastFolder: '', syncUrl: '', lastSyncAt: 0, micEnabled: false, name: 'Eric' },
   lsLoad(LS.set, {})
 );
 // migrate older segments: ensure folder + len + spaced-repetition fields
@@ -169,12 +169,9 @@ const state = {
   folderFilter: null,          // null = All
   folderSort: 'recent',        // recent | name | count
   clipSort: 'recent',          // recent | stale | reps | name
-  clipFilter: 'all',           // all | due | new | done
   adjustOpen: false,           // fine-tune panel expanded
   hmView: 'm1',                // m1 | m3 | y1
   pendingVideo: null,          // {videoId, start} waiting for API ready
-  queue: null,                 // review queue: array of segment ids, or null
-  queueIndex: 0,
 };
 const LEN_MIN = 0.5, LEN_MAX = 8;
 const isCoarse = matchMedia('(pointer: coarse)').matches;
@@ -512,27 +509,6 @@ function countRep(){
   saveLogs();
 
   updateRepButton(true);
-
-  // first practice ever: the clip joins the review rotation, due tomorrow
-  if (!seg.dueDate){
-    seg.srsLevel = 0;
-    seg.dueDate = dateStrPlus(SRS_INTERVALS[0]);
-    saveSegments();
-  }
-
-  // SRS: clearing a due clip levels it up and schedules the next review
-  if (isDue(seg) && segTodayReps(seg.id) >= REVIEW_REPS){
-    seg.srsLevel = Math.min((seg.srsLevel || 0) + 1, SRS_INTERVALS.length - 1);
-    seg.dueDate = dateStrPlus(SRS_INTERVALS[seg.srsLevel]);
-    saveSegments();
-    if (state.queue && seg.id === queueCurrentId()){
-      toast('✓ Cleared — next clip');
-      setTimeout(queueAdvance, 1200);
-    } else {
-      toast('✓ Reviewed — due again in ' + SRS_INTERVALS[seg.srsLevel] + 'd');
-    }
-  }
-  if (state.queue) updateQueueRep();
 
   if (before < settings.dailyGoal && before + 1 >= settings.dailyGoal){
     const st = computeStreak();
@@ -1160,20 +1136,6 @@ function deleteSegment(id){
   segments = segments.filter(s => s.id !== id);
   if (state.currentSegmentId === id) state.currentSegmentId = null;
   idbDelTake(id).catch(() => {});
-  if (state.queue){
-    const wasCurrent = queueCurrentId() === id;
-    const pos = state.queue.indexOf(id);
-    if (pos !== -1){
-      state.queue.splice(pos, 1);
-      if (pos < state.queueIndex) state.queueIndex--;
-    }
-    if (!state.queue.length) exitReview();
-    else {
-      state.queueIndex = Math.min(state.queueIndex, state.queue.length - 1);
-      if (wasCurrent) loadSegment(state.queue[state.queueIndex]);
-      renderQueueBar();
-    }
-  }
   saveSegments();
   renderDashboard();
   renderSegmentList();
@@ -1253,20 +1215,17 @@ function sortedClips(list){
   return arr;
 }
 
-/* practice status of a clip, for the at-a-glance dot + filters */
+/* practice status of a clip, for the at-a-glance rep tally colour */
 function segStatus(seg){
   if (segTodayReps(seg.id) > 0) return 'done';   // touched today
-  if (isDue(seg)) return 'due';                  // review waiting
   if (!seg.lastPracticedAt) return 'new';        // never practiced
-  return 'ok';                                   // scheduled for a later day
+  return 'ok';                                   // practiced before
 }
 const STATUS_TITLE = {
   done: 'Practiced today',
-  due: 'Due for review',
   new: 'Not practiced yet',
-  ok: 'Scheduled — comes back later',
+  ok: 'Practiced before',
 };
-const STATUS_WORD = { done: 'Done today', due: 'Due', new: 'New', ok: 'Scheduled' };
 
 /* move a clip to another folder (from the inline folder chip) */
 function moveSegment(id, folder){
@@ -1383,17 +1342,6 @@ function renderSegmentList(){
   let list = segments.slice();
   if (state.folderFilter) list = list.filter(s => (s.folder || DEFAULT_FOLDER) === state.folderFilter);
 
-  // status filter chips (counts reflect the current folder)
-  const counts = { all: list.length, due: 0, new: 0, done: 0 };
-  list.forEach(s => { const st = segStatus(s); if (counts[st] != null) counts[st]++; });
-  $$('#clip-filters .fchip').forEach(ch => {
-    const f = ch.dataset.f;
-    ch.classList.toggle('active', state.clipFilter === f);
-    const b = ch.querySelector('b');
-    if (b) b.textContent = counts[f] || 0;
-  });
-  if (state.clipFilter !== 'all') list = list.filter(s => segStatus(s) === state.clipFilter);
-
   list = sortedClips(list);
 
   const titleEl = $('#clips-pane-title');
@@ -1403,9 +1351,7 @@ function renderSegmentList(){
   ul.innerHTML = '';
   const empty = $('#segment-list-empty');
   empty.classList.toggle('hidden', list.length > 0);
-  empty.textContent = (state.clipFilter !== 'all' && counts.all > 0)
-    ? 'Nothing matches this filter — try another one above.'
-    : 'No clips here yet. Load a video, set a start, then hit Save.';
+  empty.textContent = 'No clips here yet. Load a video, set a start, then hit Save.';
 
   list.forEach(seg => {
     const st = segStatus(seg);
@@ -1442,99 +1388,6 @@ function renderSegmentList(){
   });
 }
 
-/* ---------------- review queue (spaced repetition) ----------------
-   Anki-style intervals. A clip is "due" when its dueDate has arrived;
-   clearing it (REVIEW_REPS reps that day) bumps it to the next interval. */
-const REVIEW_REPS = 3;
-const SRS_INTERVALS = [1, 3, 7, 14, 30];
-
-function isDue(seg){ return !!seg.dueDate && seg.dueDate <= todayStr(); }
-function dueSegments(){
-  return segments
-    .filter(isDue)
-    .sort((a, b) =>
-      (a.dueDate || '').localeCompare(b.dueDate || '') ||
-      (a.lastPracticedAt || 0) - (b.lastPracticedAt || 0));
-}
-
-function queueCurrentId(){ return state.queue ? state.queue[state.queueIndex] : null; }
-
-function startReview(){
-  const due = dueSegments();
-  if (!due.length){ toast('Nothing due today — nice!'); return; }
-  state.queue = due.map(s => s.id);
-  state.queueIndex = 0;
-  loadSegment(state.queue[0]);
-  renderQueueBar();
-}
-function exitReview(){
-  state.queue = null;
-  state.queueIndex = 0;
-  renderQueueBar();
-}
-function queueAdvance(){
-  if (!state.queue) return;
-  if (state.queueIndex + 1 >= state.queue.length){
-    exitReview();
-    toast('🎉 Review complete — every due clip cleared!');
-    renderDashboard();
-    return;
-  }
-  state.queueIndex++;
-  loadSegment(state.queue[state.queueIndex]);
-  renderQueueBar();
-}
-function renderQueueBar(){
-  const bar = $('#queue-bar');
-  if (!state.queue){ bar.classList.add('hidden'); return; }
-  bar.classList.remove('hidden');
-  $('#queue-progress').textContent = (state.queueIndex + 1) + ' / ' + state.queue.length;
-  const dots = $('#queue-dots');
-  dots.innerHTML = '';
-  if (state.queue.length <= 14){
-    state.queue.forEach((id, i) => {
-      const d = document.createElement('i');
-      d.className = 'qdot' + (i < state.queueIndex ? ' done' : i === state.queueIndex ? ' cur' : '');
-      dots.appendChild(d);
-    });
-  }
-  updateQueueRep();
-}
-function updateQueueRep(){
-  if (!state.queue) return;
-  const n = Math.min(segTodayReps(queueCurrentId()), REVIEW_REPS);
-  $('#queue-rep').textContent = 'Rep ' + n + ' / ' + REVIEW_REPS;
-}
-
-function renderReviewCard(){
-  const sec = $('#review-section');
-  if (!segments.length){ sec.classList.add('hidden'); return; }
-  sec.classList.remove('hidden');
-  const due = dueSegments();
-  const fresh = segments.filter(s => !s.lastPracticedAt).length;
-  const freshNote = fresh
-    ? ' · ' + fresh + ' new clip' + (fresh === 1 ? '' : 's') + ' not started yet'
-    : '';
-  const badge = $('#review-badge');
-  if (due.length){
-    badge.classList.remove('done');
-    $('#due-count').textContent = due.length;
-    $('#due-word').textContent = 'due';
-    $('#review-title').textContent = "Today's review";
-    $('#review-sub').textContent = due.length + (due.length === 1 ? ' clip' : ' clips') + ' waiting · ' + REVIEW_REPS + ' reps each to clear' + freshNote;
-    $('#start-review').classList.remove('hidden');
-  } else {
-    badge.classList.add('done');
-    $('#due-count').textContent = '✓';
-    $('#due-word').textContent = 'done';
-    $('#review-title').textContent = 'All caught up';
-    $('#review-sub').textContent = fresh
-      ? 'Nothing due — but ' + fresh + ' new clip' + (fresh === 1 ? ' hasn\'t' : 's haven\'t') + ' been practiced yet. One rep adds them to the rotation.'
-      : 'Nothing due — reviews come back on a 1 / 3 / 7 / 14 / 30-day rhythm';
-    $('#start-review').classList.add('hidden');
-  }
-}
-
 /* ---------------- daily spark ----------------
    One quote per day, picked deterministically from the date so it
    stays the same all day and changes tomorrow. */
@@ -1561,6 +1414,24 @@ const QUOTES = [
   { t: 'Do something today that your future self will thank you for.', a: 'Sean Patrick Flanery' },
   { t: 'You are always a student, never a master. You have to keep moving forward.', a: 'Conrad Hall' },
   { t: 'Practice like you have never won. Perform like you have never lost.', a: 'Bernard F. Asuncion' },
+  { t: 'Knowledge of languages is the doorway to wisdom.', a: 'Roger Bacon' },
+  { t: 'He who knows no foreign languages knows nothing of his own.', a: 'Johann Wolfgang von Goethe' },
+  { t: 'The more languages you know, the more you are human.', a: 'Tomáš Garrigue Masaryk' },
+  { t: 'Language is the blood of the soul into which thoughts run and out of which they grow.', a: 'Oliver Wendell Holmes' },
+  { t: 'You can never understand one language until you understand at least two.', a: 'Geoffrey Willans' },
+  { t: 'A new language is a new life.', a: 'Persian proverb' },
+  { t: 'Practice is the hardest part of learning, and training is the essence of transformation.', a: 'Ann Voskamp' },
+  { t: 'Small daily improvements over time lead to stunning results.', a: 'Robin Sharma' },
+  { t: 'It does not matter how slowly you go as long as you do not stop.', a: 'Confucius' },
+  { t: 'Quality is not an act, it is a habit.', a: 'Aristotle' },
+  { t: 'We first make our habits, and then our habits make us.', a: 'John Dryden' },
+  { t: 'Perfection is not attainable, but if we chase perfection we can catch excellence.', a: 'Vince Lombardi' },
+  { t: 'The way to get started is to quit talking and begin doing.', a: 'Walt Disney' },
+  { t: 'Continuous improvement is better than delayed perfection.', a: 'Mark Twain' },
+  { t: 'Fluency is not about knowing every word, but about not being afraid to speak.', a: 'Anonymous' },
+  { t: 'A little progress each day adds up to big results.', a: 'Satya Nani' },
+  { t: 'Courage is the most important of all the virtues, because without courage you can\'t practice any other virtue consistently.', a: 'Maya Angelou' },
+  { t: 'The only way to learn to speak is to speak.', a: 'Anonymous' },
 ];
 function renderQuote(){
   const s = todayStr();
@@ -1621,13 +1492,40 @@ function renderDashboard(){
   $('#freeze-count').textContent = st.freezes;
 
   $('#goal-input').value = goal;
+  $('#name-input').value = settings.name || '';
+  renderGreeting(total, goal);
 
   const isEmpty = segments.length === 0 && logs.length === 0;
   $('#getting-started').classList.toggle('hidden', !isEmpty);
   $('#progress-section').classList.toggle('hidden', isEmpty);
   if (!isEmpty) renderHeatmap();
-  renderReviewCard();
   renderQuote();
+}
+
+/* ---------------- personalised greeting ----------------
+   Time-of-day hello + a progress-aware line, both using the name from
+   Settings (blank name simply drops the ", Eric" part). */
+function greetingTime(){
+  const h = new Date().getHours();
+  if (h < 5)  return 'Still up';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+function renderGreeting(total, goal){
+  const name = (settings.name || '').trim();
+  const who = name ? ', ' + name : '';
+  $('#hero-greeting').textContent = greetingTime() + who + ' 👋';
+  let title;
+  if (total <= 0){
+    title = 'What are you shadowing today' + who + '?';
+  } else if (total < goal){
+    const left = goal - total;
+    title = left + (left === 1 ? ' rep' : ' reps') + ' to go' + who + ' — keep it rolling';
+  } else {
+    title = 'Goal done' + who + ' 🎉 every extra rep is a bonus';
+  }
+  $('#hero-title').textContent = title;
 }
 
 function renderClips(){
@@ -1886,12 +1784,9 @@ $('#nav-clips').addEventListener('click', () => showView('clips'));
 $('#nav-practice').addEventListener('click', () => showView('practice'));
 $('#nav-settings').addEventListener('click', () => showView('settings'));
 
-// clips sorting + status filter
+// clips sorting
 $('#folder-sort').addEventListener('change', e => { state.folderSort = e.target.value; renderSegmentList(); });
 $('#clip-sort').addEventListener('change', e => { state.clipSort = e.target.value; renderSegmentList(); });
-$$('#clip-filters .fchip').forEach(ch => {
-  ch.addEventListener('click', () => { state.clipFilter = ch.dataset.f; renderSegmentList(); });
-});
 
 $$('.nudge').forEach(btn => {
   const d = parseFloat(btn.dataset.d);
@@ -1922,11 +1817,6 @@ $('#echo-status').addEventListener('click', () => { if (rec.recorder) stopTake(f
 $('#play-orig').addEventListener('click', playOriginalClip);
 $('#play-mine').addEventListener('click', playMine);
 $('#play-ab').addEventListener('click', () => { abPending = true; playOriginalClip(); });
-
-// review queue
-$('#start-review').addEventListener('click', startReview);
-$('#queue-skip').addEventListener('click', queueAdvance);
-$('#queue-exit').addEventListener('click', exitReview);
 (function(){
   const inp = $('#time-a');
   const commit = () => {
@@ -1969,6 +1859,11 @@ $('#goal-input').addEventListener('change', () => {
   const v = parseInt($('#goal-input').value, 10);
   if (v >= 1 && v <= 500){ settings.dailyGoal = v; saveSettings(); renderDashboard(); }
   else $('#goal-input').value = settings.dailyGoal;
+});
+$('#name-input').addEventListener('input', () => {
+  settings.name = $('#name-input').value.trim().slice(0, 30);
+  saveSettings();
+  renderGreeting(todayTotal(), settings.dailyGoal);
 });
 $$('.hm-view').forEach(btn => {
   btn.addEventListener('click', () => {
