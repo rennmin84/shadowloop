@@ -937,9 +937,24 @@ function captureStartFromPlayer(){
   if (!playerReady) return;
   setStart(round1(mediaTime()));
 }
+// Fine-tuning the head: the end stays where it is and the clip grows or
+// shrinks, the same as dragging the strip's left handle. Distinct from
+// setStart(), which places a fresh clip of the remembered length.
+function moveStartEdge(val){
+  if (state.a == null || state.b == null){ setStart(val); return; }
+  const b = state.b;
+  const latest = Math.max(0, round1(b - LEN_MIN));            // can't cross the end
+  const earliest = Math.min(latest, Math.max(0, round1(b - LEN_MAX)));
+  state.a = clamp(round1(val), earliest, latest);
+  state.len = round1(b - state.a);
+  settings.defaultLen = state.len; saveSettings();
+  recomputeB();
+  refreshCurrentSegment();
+  updateAll();
+}
 function nudgeStart(delta){
   if (state.a == null){ toast('Pause the video at a start point first'); return; }
-  setStart(state.a + delta);
+  moveStartEdge(state.a + delta);
 }
 function setLen(val){
   state.len = clamp(round1(val), LEN_MIN, LEN_MAX);
@@ -1035,15 +1050,7 @@ function renderStripPlayhead(){
 function applyStripDrag(t){
   if (!stripDrag) return;
   if (stripDrag.mode === 'a'){
-    // left edge: trim/extend the head, keeping the end where it is
-    const b = state.b;
-    const a = clamp(round1(t), Math.max(0, round1(b - LEN_MAX)), round1(b - LEN_MIN));
-    state.a = a;
-    state.len = round1(b - a);
-    settings.defaultLen = state.len; saveSettings();
-    recomputeB();
-    refreshCurrentSegment();
-    updateAll();
+    moveStartEdge(t);          // left edge: trim/extend the head, end stays put
   } else if (stripDrag.mode === 'b'){
     setLen(t - state.a);
   } else {
@@ -1967,7 +1974,7 @@ $('#play-ab').addEventListener('click', () => { abPending = true; playOriginalCl
   const inp = $('#time-a');
   const commit = () => {
     const v = parseTimeStr(inp.value);
-    if (v != null){ setStart(v); scheduleAudition('a'); }
+    if (v != null){ moveStartEdge(v); scheduleAudition('a'); }
     else inp.value = state.a != null ? fmtTime(state.a, true) : '';
   };
   inp.addEventListener('change', commit);
