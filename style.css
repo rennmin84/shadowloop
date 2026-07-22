@@ -559,36 +559,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .strip-handle{transition:transform .16s, box-shadow .16s;}
 
-/* a boundary just moved: the read-out flicks the way it travelled and its
-   handle pings — enough to catch the eye, not enough to interrupt */
-@keyframes edge-flick-up{
-  0%{transform:translateX(0); box-shadow:0 0 0 3px var(--accent-soft);}
-  35%{transform:translateX(3px);}
-  100%{transform:translateX(0); box-shadow:0 0 0 3px transparent;}
+/* a boundary just moved: the read-out's border flashes while the number
+   pops and settles, and its handle pings — enough to catch the eye,
+   not enough to interrupt */
+@keyframes edge-bump{
+  0%{transform:scale(1.10); border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  100%{transform:scale(1); box-shadow:0 0 0 3px transparent;}
 }
-@keyframes edge-flick-down{
-  0%{transform:translateX(0); box-shadow:0 0 0 3px var(--accent-soft);}
-  35%{transform:translateX(-3px);}
-  100%{transform:translateX(0); box-shadow:0 0 0 3px transparent;}
-}
-.time-input.bump-up{animation:edge-flick-up .34s cubic-bezier(.22,1,.36,1);}
-.time-input.bump-down{animation:edge-flick-down .34s cubic-bezier(.22,1,.36,1);}
+.time-input.bump{animation:edge-bump .38s ease-out;}
 @keyframes handle-ping{
   0%{transform:translate(-50%,-50%) scale(1.35); box-shadow:0 0 0 0 var(--accent-soft);}
   100%{transform:translate(-50%,-50%) scale(1); box-shadow:0 0 0 10px transparent;}
 }
 .strip-handle.ping{animation:handle-ping .42s ease-out;}
-@keyframes pill-ping{
-  0%{transform:scale(1.07); background:var(--accent-tint); border-color:color-mix(in srgb, var(--accent) 40%, var(--border));}
-  100%{transform:scale(1);}
-}
-.len-pill.ping{animation:pill-ping .42s ease-out;}
 @media (prefers-reduced-motion:reduce){
   /* keep the cue, drop the movement */
-  @keyframes edge-flick-up{0%{box-shadow:0 0 0 3px var(--accent-soft);} 100%{box-shadow:0 0 0 3px transparent;}}
-  @keyframes edge-flick-down{0%{box-shadow:0 0 0 3px var(--accent-soft);} 100%{box-shadow:0 0 0 3px transparent;}}
+  @keyframes edge-bump{
+    0%{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+    100%{box-shadow:0 0 0 3px transparent;}
+  }
   @keyframes handle-ping{0%{box-shadow:0 0 0 0 var(--accent-soft);} 100%{box-shadow:0 0 0 10px transparent;}}
-  @keyframes pill-ping{0%{background:var(--accent-tint);} 100%{background:var(--surface2);}}
 }
 @media (max-width:560px){
   .edge-pair{grid-template-columns:1fr; gap:8px;}
