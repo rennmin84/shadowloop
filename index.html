@@ -169,38 +169,48 @@
           </div>
           <div class="strip-times"><span id="strip-t0"></span><span class="dim">drag the clip · pull the edges · you'll hear each change</span><span id="strip-t1"></span></div>
         </div>
-        <div class="clip-group" id="start-group">
-          <span class="len-label">Start</span>
-          <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
-          <div class="nudges">
-            <span class="nudge-cluster minus">
-              <button class="btn nudge" data-d="-1">−1</button>
-              <button class="btn nudge" data-d="-0.5">−0.5</button>
-              <button class="btn nudge" data-d="-0.1">−0.1</button>
-            </span>
-            <span class="nudge-cluster plus">
-              <button class="btn nudge" data-d="0.1">+0.1</button>
-              <button class="btn nudge" data-d="0.5">+0.5</button>
-              <button class="btn nudge" data-d="1">+1</button>
-            </span>
+        <div class="edge-pair">
+          <div class="clip-group edge-card" id="start-group">
+            <span class="len-label">Start</span>
+            <input id="time-a" class="time-input" placeholder="–:––" autocomplete="off">
+            <div class="nudges">
+              <span class="nudge-cluster minus">
+                <button class="btn nudge" data-d="-1">−1</button>
+                <button class="btn nudge" data-d="-0.5">−0.5</button>
+                <button class="btn nudge" data-d="-0.1">−0.1</button>
+              </span>
+              <span class="nudge-cluster plus">
+                <button class="btn nudge" data-d="0.1">+0.1</button>
+                <button class="btn nudge" data-d="0.5">+0.5</button>
+                <button class="btn nudge" data-d="1">+1</button>
+              </span>
+            </div>
+            <span class="edge-hint"><span>◀ earlier</span><span>later ▶</span></span>
           </div>
-        </div>
-        <div class="clip-group" id="end-group">
-          <span class="len-label">End</span>
-          <input id="time-b" class="time-input" placeholder="–:––" autocomplete="off">
-          <div class="nudges">
-            <span class="nudge-cluster minus">
-              <button class="btn end-nudge" data-d="-1">−1</button>
-              <button class="btn end-nudge" data-d="-0.5">−0.5</button>
-              <button class="btn end-nudge" data-d="-0.1">−0.1</button>
-            </span>
-            <span class="nudge-cluster plus">
-              <button class="btn end-nudge" data-d="0.1">+0.1</button>
-              <button class="btn end-nudge" data-d="0.5">+0.5</button>
-              <button class="btn end-nudge" data-d="1">+1</button>
-            </span>
+
+          <div class="edge-span" aria-hidden="true">
+            <span class="edge-span-line"></span>
+            <span id="len-val" class="len-pill">2.0s</span>
+            <span class="edge-span-line"></span>
           </div>
-          <span id="len-val" class="len-pill">2.0s</span>
+
+          <div class="clip-group edge-card" id="end-group">
+            <span class="len-label">End</span>
+            <input id="time-b" class="time-input" placeholder="–:––" autocomplete="off">
+            <div class="nudges">
+              <span class="nudge-cluster minus">
+                <button class="btn end-nudge" data-d="-1">−1</button>
+                <button class="btn end-nudge" data-d="-0.5">−0.5</button>
+                <button class="btn end-nudge" data-d="-0.1">−0.1</button>
+              </span>
+              <span class="nudge-cluster plus">
+                <button class="btn end-nudge" data-d="0.1">+0.1</button>
+                <button class="btn end-nudge" data-d="0.5">+0.5</button>
+                <button class="btn end-nudge" data-d="1">+1</button>
+              </span>
+            </div>
+            <span class="edge-hint"><span>◀ earlier</span><span>later ▶</span></span>
+          </div>
         </div>
       </div>
     </div>
