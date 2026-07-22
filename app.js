@@ -1090,10 +1090,39 @@ function renderClipSummary(){
   const has = state.a != null && state.b != null;
   $('#adjust-panel').classList.toggle('hidden', !has);   // panel is always visible once a clip exists
 }
+/* A boundary moved — flick the read-out the way it travelled and ping its
+   handle on the strip, so a change you didn't type is still noticed. */
+const shown = { a: null, b: null, len: null };
+function flick(el, cls){
+  if (!el) return;
+  el.classList.remove('bump-up', 'bump-down', 'ping');
+  void el.offsetWidth;                     // restart the animation mid-flight
+  el.classList.add(cls);
+}
+function pulseEdges(){
+  if (stripDrag){                          // dragging already shows the movement
+    shown.a = state.a; shown.b = state.b; shown.len = state.len;
+    return;
+  }
+  const seen = shown.a != null && shown.b != null;
+  const moved = k => state.a != null && seen && Math.abs(state[k] - shown[k]) > 0.001;
+  if (moved('a') && document.activeElement !== $('#time-a')){
+    flick($('#time-a'), state.a > shown.a ? 'bump-up' : 'bump-down');
+    flick($('.strip-handle[data-h="a"]'), 'ping');
+  }
+  if (moved('b') && document.activeElement !== $('#time-b')){
+    flick($('#time-b'), state.b > shown.b ? 'bump-up' : 'bump-down');
+    flick($('.strip-handle[data-h="b"]'), 'ping');
+  }
+  if (seen && Math.abs(state.len - shown.len) > 0.001) flick($('#len-val'), 'ping');
+  shown.a = state.a; shown.b = state.b; shown.len = state.len;
+}
+
 function updateAll(){
   $('#time-a').value = state.a != null ? fmtTime(state.a, true) : '';
   $('#time-b').value = state.b != null ? fmtTime(state.b, true) : '';
   $('#len-val').textContent = state.len.toFixed(1) + 's';
+  pulseEdges();
   $('#clip-unset-hint').classList.toggle('hidden', state.a != null);
   renderClipSummary();
   renderStrip();
