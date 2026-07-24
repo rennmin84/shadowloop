@@ -280,7 +280,7 @@ window.onYouTubeIframeAPIReady = function(){
 
 function createPlayer(videoId, start){
   // disablekb: turn off YouTube's own keyboard (its J/L jump 10s) so our
-  // J/L (1s) is the only thing that answers those keys
+  // A/D (1s) is the only thing that answers those keys
   const pv = { playsinline: 1, rel: 0, controls: 1, disablekb: 1, start: Math.floor(start || 0) };
   // YouTube needs a valid origin/referer, otherwise it throws Error 153. file:// has no origin.
   if (location.protocol === 'http:' || location.protocol === 'https:') {
@@ -2079,14 +2079,14 @@ document.addEventListener('keydown', e => {
   if ($('#view-practice').classList.contains('hidden')) return;
 
   const k = e.key;
-  if (k === ' ' || k === 'k' || k === 'K'){
+  if (k === ' ' || k === 'k' || k === 'K' || k === 's' || k === 'S'){
     e.preventDefault();
     if (playerReady){ if (mediaPlaying()) mediaPause(); else mediaPlay(); }
   } else if (k === 'r' || k === 'R' || k === 'Enter'){
     e.preventDefault(); doReplay();
-  } else if (k === 'j' || k === 'J'){
+  } else if (k === 'a' || k === 'A'){
     e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);
-  } else if (k === 'l' || k === 'L'){
+  } else if (k === 'd' || k === 'D'){
     e.preventDefault(); seekRelative(e.shiftKey ? 10 : 1);
   } else if (k === 'ArrowLeft' || k === 'ArrowRight'){
     e.preventDefault();
