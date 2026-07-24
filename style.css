@@ -231,7 +231,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .heatmap{grid-column:2; grid-row:2; display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, auto); grid-template-columns:repeat(var(--cols), 1fr); gap:3px; width:100%;}
 .hm-cell{aspect-ratio:1; min-width:0; border-radius:2.5px; background:var(--surface2); position:relative;}
 .hm-cell.hm-pad{background:transparent;}
-.hm-cell[data-today="1"]{box-shadow:0 0 0 1.5px var(--text2); z-index:1;}
+.hm-cell[data-today="1"]{box-shadow:0 0 0 1.5px #5c6b615c; z-index:1;}
 .hm-cell[data-lv="1"]{background:color-mix(in srgb, var(--accent) 25%, var(--surface2));}
 .hm-cell[data-lv="2"]{background:color-mix(in srgb, var(--accent) 50%, var(--surface2));}
 .hm-cell[data-lv="3"]{background:var(--accent);}
