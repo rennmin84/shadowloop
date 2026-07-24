@@ -1672,15 +1672,6 @@ function hmLevel(reps, goal){
   return 4;
 }
 
-function renderHmStats(){
-  const el = $('#hm-stats');
-  const repsByDate = {};
-  logs.forEach(l => { repsByDate[l.date] = (repsByDate[l.date] || 0) + l.reps; });
-  const totalReps = Object.values(repsByDate).reduce((a, b) => a + b, 0);
-  const daysPracticed = Object.values(repsByDate).filter(r => r > 0).length;
-  el.textContent = totalReps + ' reps · ' + daysPracticed + (daysPracticed === 1 ? ' day practiced' : ' days practiced');
-}
-
 function makeCell(ds, reps, goal, newCount, isToday){
   const cell = document.createElement('div');
   cell.className = 'hm-cell';
@@ -1757,8 +1748,6 @@ function renderHeatmap(){
     lab.style.gridRow = row + 1;
     days.appendChild(lab);
   });
-
-  renderHmStats();
 }
 
 /* ---------------- export / import ---------------- */
