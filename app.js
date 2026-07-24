@@ -163,7 +163,7 @@ const state = {
   title: '',
   duration: 0,
   a: null,                     // clip start
-  len: settings.defaultLen || 2,
+  len: DEFAULT_LEN,
   b: null,                     // computed = a + len
   speed: 1,                    // fixed playback rate
   currentSegmentId: null,
@@ -174,6 +174,7 @@ const state = {
   pendingVideo: null,          // {videoId, start} waiting for API ready
 };
 const LEN_MIN = 0.5, LEN_MAX = 8;
+const DEFAULT_LEN = 2;           // fresh clips always start 2s long
 const isCoarse = matchMedia('(pointer: coarse)').matches;
 
 /* rep detection engine state */
@@ -946,7 +947,6 @@ function moveStartEdge(val){
   const earliest = Math.min(latest, Math.max(0, round1(b - LEN_MAX)));
   state.a = clamp(round1(val), earliest, latest);
   state.len = round1(b - state.a);
-  settings.defaultLen = state.len; saveSettings();
   recomputeB();
   refreshCurrentSegment();
   updateAll();
@@ -957,7 +957,6 @@ function nudgeStart(delta){
 }
 function setLen(val){
   state.len = clamp(round1(val), LEN_MIN, LEN_MAX);
-  settings.defaultLen = state.len; saveSettings();
   recomputeB();
   refreshCurrentSegment();
   updateAll();
@@ -1930,7 +1929,7 @@ function looksLikeAudioUrl(s){
   return /(podtrac|simplecastaudio|megaphone|libsyn|buzzsprout|acast|art19|npr\.org|byspotify|chrt\.fm|swap\.fm|pdst\.fm)/i.test(s);
 }
 function resetForNewSource(){
-  state.a = null; state.b = null; state.currentSegmentId = null;
+  state.a = null; state.b = null; state.len = DEFAULT_LEN; state.currentSegmentId = null;
   clearTake();
   showView('practice');
 }
@@ -2079,15 +2078,21 @@ document.addEventListener('keydown', e => {
   if ($('#view-practice').classList.contains('hidden')) return;
 
   const k = e.key;
-  if (k === ' ' || k === 'k' || k === 'K' || k === 's' || k === 'S'){
+  if (k === 's' || k === 'S'){
+    // S is the only play/pause key
     e.preventDefault();
     if (playerReady){ if (mediaPlaying()) mediaPause(); else mediaPlay(); }
-  } else if (k === 'r' || k === 'R' || k === 'Enter'){
+  } else if (k === ' ' || k === 'r' || k === 'R' || k === 'Enter'){
+    // Space now replays the clip
     e.preventDefault(); doReplay();
   } else if (k === 'a' || k === 'A'){
-    e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);
+    e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);   // move the start back/forward
   } else if (k === 'd' || k === 'D'){
     e.preventDefault(); seekRelative(e.shiftKey ? 10 : 1);
+  } else if (k === 'j' || k === 'J'){
+    e.preventDefault(); changeLen(e.shiftKey ? -10 : -1); scheduleAudition('b');   // move the end back/forward
+  } else if (k === 'l' || k === 'L'){
+    e.preventDefault(); changeLen(e.shiftKey ? 10 : 1); scheduleAudition('b');
   } else if (k === 'ArrowLeft' || k === 'ArrowRight'){
     e.preventDefault();
     const step = (e.shiftKey ? 1 : 0.5) * (k === 'ArrowLeft' ? -1 : 1);
