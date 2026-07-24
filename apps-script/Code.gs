@@ -21,12 +21,33 @@ function doGet(e) {
   return jsonOut({ ok: true, data: readData() });
 }
 
+// Resolve a page URL to { title, image, audio }, in three escalating layers:
+//   1. Apple's podcast index, keyed off the URL's title slug. Fast, and it
+//      never touches the origin — so it sails past Akamai/Cloudflare bot walls
+//      (NPR et al.) that tarpit the datacenter IP this script runs from.
+//   2. Scrape the page's own og:/twitter: tags.
+//   3. If the scrape yields a title but no playable audio (Spotify, etc.),
+//      ask Apple for that episode by title to recover the audio + artwork.
 function fetchMeta(pageUrl) {
+  var term = slugTerm(pageUrl);
+  if (term) {
+    var ep = itunesEpisode(term);
+    if (ep) return ep;
+  }
+  var m = scrapeMeta(pageUrl);
+  if (m && m.title && !m.audio) {
+    var ep2 = itunesEpisode(m.title);
+    if (ep2) return { title: m.title || ep2.title, image: m.image || ep2.image, audio: ep2.audio };
+  }
+  return m;
+}
+
+function scrapeMeta(pageUrl) {
   try {
     // A real browser UA + Accept headers get us past sites that gate on the
     // User-Agent. It does NOT beat Akamai/Cloudflare bot managers (NPR etc.),
     // which fingerprint the datacenter IP this script runs from — those will
-    // stall or 403 no matter what we send here.
+    // stall or 403 no matter what we send here (hence the Apple layer above).
     var resp = UrlFetchApp.fetch(pageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
@@ -50,6 +71,68 @@ function fetchMeta(pageUrl) {
   } catch (err) {
     return { error: String(err) };
   }
+}
+
+// Search Apple's podcast episode index for `term`, returning the first result
+// whose title strongly overlaps the query (Apple always hands back *something*
+// for limit>=1, so the overlap gate is what stops us mislabelling a page).
+function itunesEpisode(term) {
+  try {
+    var url = 'https://itunes.apple.com/search?media=podcast&entity=podcastEpisode&limit=5&term=' +
+              encodeURIComponent(term);
+    var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    if (resp.getResponseCode() !== 200) return null;
+    var results = (JSON.parse(resp.getContentText()) || {}).results || [];
+    var want = tokens(term);
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      if (strongOverlap(want, tokens(r.trackName || ''))) {
+        return {
+          title: String(r.trackName || '').replace(/\s+/g, ' ').trim(),
+          image: r.artworkUrl600 || r.artworkUrl100 || '',
+          audio: r.episodeUrl || ''
+        };
+      }
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// The URL's most title-like path segment, hyphens turned to spaces:
+// /2026/07/20/nx-s1-5897458/before-you-fibermaxx-know-these-tips -> "before you fibermaxx know these tips"
+function slugTerm(pageUrl) {
+  try {
+    var path = String(pageUrl).replace(/^https?:\/\/[^\/]+/i, '').replace(/[?#].*$/, '');
+    var segs = path.split('/');
+    var best = '';
+    for (var i = 0; i < segs.length; i++) {
+      var words = decodeURIComponent(segs[i]).split(/[-_]+/)
+        .filter(function (w) { return w && !/^\d+$/.test(w); });
+      if (words.length >= 2 && words.length > best.split(' ').filter(Boolean).length) {
+        best = words.join(' ');
+      }
+    }
+    return best.replace(/\s+/g, ' ').trim();
+  } catch (err) {
+    return '';
+  }
+}
+
+function tokens(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ')
+    .filter(function (t) { return t.length >= 2; });
+}
+
+// True when most of the query's words appear in the candidate title.
+function strongOverlap(want, got) {
+  if (want.length < 2) return false;
+  var set = {};
+  for (var i = 0; i < got.length; i++) set[got[i]] = 1;
+  var hit = 0;
+  for (var j = 0; j < want.length; j++) if (set[want[j]]) hit++;
+  return hit >= 2 && hit / want.length >= 0.6;
 }
 
 // Pull a <meta property|name="<prop>" content="..."> value, either attribute order.
