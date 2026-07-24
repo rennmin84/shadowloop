@@ -338,6 +338,24 @@ function setMediaMode(kind){
   if (audioEl) audioEl.classList.toggle('hidden', kind !== 'audio');
   const frame = $('#player');
   if (frame) frame.classList.toggle('hidden', kind === 'audio');
+  if (kind !== 'audio') showAudioCover(null);
+}
+
+// podcast cover art on the audio stage (player-wrap)
+function showAudioCover(src){
+  const wrap = $('#player-wrap');
+  const cover = $('#audio-cover');
+  if (!cover || !wrap) return;
+  if (src){
+    cover.src = src;
+    cover.classList.remove('hidden');
+    wrap.classList.add('has-cover');
+    cover.onerror = () => { cover.classList.add('hidden'); wrap.classList.remove('has-cover'); };
+  } else {
+    cover.classList.add('hidden');
+    cover.removeAttribute('src');
+    wrap.classList.remove('has-cover');
+  }
 }
 function ensureAudioEl(){
   if (audioEl) return audioEl;
@@ -383,6 +401,7 @@ function loadAudio(url, start = 0, meta){
   audioPendingSeek = start || 0;
   ensureAudioEl();
   setMediaMode('audio');
+  showAudioCover(state.image);
   $('#player-placeholder').classList.add('hidden');
   $('#video-title').textContent = '🎧 ' + state.title;
   audioEl.src = url;

@@ -420,10 +420,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 /* podcast / mp3 source: the same frame becomes a simple audio stage */
 .player-wrap.audio-mode{
   aspect-ratio:auto; background:var(--surface2);
-  display:flex; align-items:center; justify-content:center; gap:12px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
   padding:22px 16px calc(22px + env(safe-area-inset-bottom));
 }
 .player-wrap.audio-mode::before{ content:"🎧"; font-size:30px; line-height:1; }
+.player-wrap.audio-mode.has-cover::before{ display:none; }   /* real cover art replaces the emoji */
+.audio-cover{
+  max-width:min(100%, 300px); max-height:220px; object-fit:cover;
+  border-radius:12px; box-shadow:var(--shadow-lift);
+}
+.audio-cover.hidden{ display:none; }
 .audio-player{ width:100%; max-width:520px; }
 .audio-player.hidden{ display:none; }
 .seg-thumb-audio{ display:flex; align-items:center; justify-content:center; font-size:22px; }

@@ -23,14 +23,21 @@ function doGet(e) {
 
 function fetchMeta(pageUrl) {
   try {
-    var resp = UrlFetchApp.fetch(pageUrl, { muteHttpExceptions: true, followRedirects: true });
+    var resp = UrlFetchApp.fetch(pageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Shadowloop/1.0)' }
+    });
     var html = resp.getContentText();
+    var audio = metaContent(html, 'og:audio:secure_url') ||
+                metaContent(html, 'og:audio') ||
+                metaContent(html, 'twitter:player:stream') ||
+                firstAudioUrl(html);
     return {
-      title: metaContent(html, 'og:title') || titleTag(html) || '',
-      image: absUrl(pageUrl, metaContent(html, 'og:image')),
-      audio: absUrl(pageUrl, metaContent(html, 'og:audio:secure_url') ||
-                            metaContent(html, 'og:audio') ||
-                            firstAudioUrl(html))
+      title: (metaContent(html, 'og:title') || metaContent(html, 'twitter:title') || titleTag(html) || '').replace(/\s+/g, ' ').trim(),
+      image: absUrl(pageUrl, metaContent(html, 'og:image') || metaContent(html, 'twitter:image') || metaContent(html, 'twitter:image:src')),
+      // firstAudioUrl grabs raw markup, so decode &amp; etc. before returning
+      audio: absUrl(pageUrl, decodeEntities(audio))
     };
   } catch (err) {
     return { error: String(err) };
