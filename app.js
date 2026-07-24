@@ -154,6 +154,7 @@ const saveLogs     = () => { lsSave(LS.log, logs);     if (!applyingRemote) sche
 const saveSettings = () => lsSave(LS.set, settings);
 
 const DEFAULT_FOLDER = 'Uncategorized';
+const DEFAULT_LEN = 2;           // fresh clips always start 2s long
 
 /* ---------------- app state ---------------- */
 const state = {
@@ -161,6 +162,7 @@ const state = {
   audioUrl: null,              // set instead of videoId for podcast/mp3 sources
   url: '',
   title: '',
+  image: null,                 // cover art for podcast/audio clips (og:image)
   duration: 0,
   a: null,                     // clip start
   len: DEFAULT_LEN,
@@ -174,7 +176,6 @@ const state = {
   pendingVideo: null,          // {videoId, start} waiting for API ready
 };
 const LEN_MIN = 0.5, LEN_MAX = 8;
-const DEFAULT_LEN = 2;           // fresh clips always start 2s long
 const isCoarse = matchMedia('(pointer: coarse)').matches;
 
 /* rep detection engine state */
@@ -311,6 +312,7 @@ function loadVideo(videoId, start = 0){
   state.videoId = videoId;
   state.url = 'https://www.youtube.com/watch?v=' + videoId;
   state.title = '';
+  state.image = null;
   state.duration = 0;
   setMediaMode('yt');
   $('#player-placeholder').classList.add('hidden');
@@ -367,21 +369,22 @@ function ensureAudioEl(){
   });
   return audioEl;
 }
-function loadAudio(url, start = 0){
+function loadAudio(url, start = 0, meta){
   cancelMark();
   mediaKind = 'audio';
   try { if (player) player.pauseVideo(); } catch (e) {}   // silence any YouTube video
   state.videoId = null;
   state.audioUrl = url;
   state.url = url;
-  state.title = 'Audio track';
+  state.title = (meta && meta.title) || 'Audio track';
+  state.image = (meta && meta.image) || null;
   state.duration = 0;
   playerReady = false;
   audioPendingSeek = start || 0;
   ensureAudioEl();
   setMediaMode('audio');
   $('#player-placeholder').classList.add('hidden');
-  $('#video-title').textContent = '🎧 Audio track';
+  $('#video-title').textContent = '🎧 ' + state.title;
   audioEl.src = url;
   audioEl.load();
   updateAll();
@@ -584,6 +587,7 @@ function makeSegment(fields = {}){
     audioUrl: state.audioUrl,         // set instead of videoId for mp3/podcast clips
     url: state.url,
     title: state.title,
+    image: state.image || null,       // podcast cover art, if any
     a: state.a, b: state.b, len: state.len,
     label: defaultLabel(),
     note: '',
@@ -1188,7 +1192,7 @@ function openSaveModal(){
   $('#modal-title').textContent = seg ? 'Update clip' : 'Save clip';
 
   const thumb = $('#modal-thumb');
-  const tu = thumbUrl(seg ? seg.videoId : state.videoId);
+  const tu = seg ? (seg.image || thumbUrl(seg.videoId)) : (state.image || thumbUrl(state.videoId));
   if (tu){
     thumb.src = tu; thumb.classList.remove('hidden');
     thumb.onerror = () => thumb.classList.add('hidden');
@@ -1240,7 +1244,7 @@ function saveFromModal(){
   settings.lastFolder = folder; saveSettings();
   let seg = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
   if (seg){
-    Object.assign(seg, { label, note, folder, a: state.a, b: state.b, len: state.len, title: state.title || seg.title });
+    Object.assign(seg, { label, note, folder, a: state.a, b: state.b, len: state.len, title: state.title || seg.title, image: state.image || seg.image || null });
   } else {
     seg = makeSegment({ label, note, folder });
     segments.push(seg);
@@ -1282,7 +1286,7 @@ function loadSegment(id){
   const isAudio = !!seg.audioUrl;
   const already = isAudio ? (state.audioUrl === seg.audioUrl) : (state.videoId === seg.videoId);
   if (!already){
-    if (isAudio) loadAudio(seg.audioUrl, Math.max(0, seg.a - 0.5));
+    if (isAudio) loadAudio(seg.audioUrl, Math.max(0, seg.a - 0.5), { title: seg.title, image: seg.image });
     else loadVideo(seg.videoId, Math.max(0, seg.a - 0.5));
     apply();
   } else {
@@ -1493,9 +1497,9 @@ function renderSegmentList(){
     const headline = (seg.note && seg.note.trim()) || seg.label || seg.title || 'Clip';
     // meta: source name · timestamp · length
     const meta = [escapeHtml(seg.title || seg.videoId || 'Audio'), fmtTime(seg.a), len.toFixed(1) + 's'].join(' · ');
-    const tUrl = thumbUrl(seg.videoId);
+    const tUrl = seg.image || thumbUrl(seg.videoId);
     const thumbHtml = tUrl
-      ? '<img class="seg-thumb" src="' + tUrl + '" alt="">'
+      ? '<img class="seg-thumb" src="' + escapeHtml(tUrl) + '" alt="">'
       : '<div class="seg-thumb seg-thumb-audio" aria-hidden="true">🎧</div>';
     li.innerHTML =
       thumbHtml +
@@ -1923,17 +1927,22 @@ function showView(which){
 /* ---------------- event wiring ---------------- */
 // A direct audio file (.mp3/.m4a…) or a known podcast host, even with the
 // tracking query string NPR/Spotify/Podtrac wrap around the real mp3.
+function isDirectAudioUrl(s){
+  return /^https?:\/\//i.test(s) && /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)(\?|#|$)/i.test(s);
+}
+// audio-serving CDN/redirect hosts that hand back a media file even without a
+// file extension — used as a fallback when the page proxy finds nothing.
 function looksLikeAudioUrl(s){
   if (!/^https?:\/\//i.test(s)) return false;
-  if (/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)(\?|#|$)/i.test(s)) return true;
-  return /(podtrac|simplecastaudio|megaphone|libsyn|buzzsprout|acast|art19|npr\.org|byspotify|chrt\.fm|swap\.fm|pdst\.fm)/i.test(s);
+  if (isDirectAudioUrl(s)) return true;
+  return /(podtrac|simplecastaudio|megaphone|libsyn|buzzsprout|acast|art19|byspotify|chrt\.fm|swap\.fm|pdst\.fm)/i.test(s);
 }
 function resetForNewSource(){
   state.a = null; state.b = null; state.len = DEFAULT_LEN; state.currentSegmentId = null;
   clearTake();
   showView('practice');
 }
-function handleUrlInput(inputEl){
+async function handleUrlInput(inputEl){
   const raw = inputEl.value.trim();
   const parsed = parseYouTubeUrl(raw);
   if (parsed){
@@ -1942,13 +1951,45 @@ function handleUrlInput(inputEl){
     loadVideo(parsed.videoId, parsed.start);
     return;
   }
-  if (looksLikeAudioUrl(raw)){
+  if (isDirectAudioUrl(raw)){
     inputEl.value = '';
     resetForNewSource();
-    loadAudio(raw, 0);
+    loadAudio(raw, 0);                 // a direct media file — just play it
     return;
   }
-  toast('Could not read that link — paste a YouTube URL or a direct .mp3 podcast link');
+  if (!/^https?:\/\//i.test(raw)){
+    toast('Could not read that link — paste a YouTube URL or a podcast link');
+    return;
+  }
+  // a podcast episode page (or an extensionless CDN link) — resolve title /
+  // cover / audio server-side via the sync proxy (browsers can't, CORS)
+  inputEl.value = '';
+  resetForNewSource();
+  if (!settings.syncUrl){
+    if (looksLikeAudioUrl(raw)){ loadAudio(raw, 0); return; }   // known audio host still works offline
+    toast('Set up cloud sync first so I can read the podcast page (Settings › Sync)', { duration: 6000 });
+    return;
+  }
+  toast('Reading the episode…');
+  const meta = await fetchPageMeta(raw);
+  if (meta && meta.audio){
+    loadAudio(meta.audio, 0, meta);
+  } else if (looksLikeAudioUrl(raw)){
+    loadAudio(raw, 0, meta || undefined);   // audio-host link the page proxy couldn't enrich
+  } else {
+    toast('Could not find audio on that page — paste the direct .mp3 link instead', { duration: 6000 });
+  }
+}
+
+// Ask the Apps Script backend (server-side, no CORS) to read a page's
+// og:title / og:image / og:audio and hand back the playable audio URL.
+async function fetchPageMeta(url){
+  try {
+    const base = settings.syncUrl;
+    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'meta=' + encodeURIComponent(url));
+    const out = await res.json();
+    return (out && out.ok && out.meta) ? out.meta : null;
+  } catch (e){ return null; }
 }
 [['#url-load-hero', '#url-input-hero'],
  ['#url-load-practice', '#url-input-practice'],
