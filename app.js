@@ -171,7 +171,6 @@ const state = {
   folderSort: 'recent',        // recent | name | count
   clipSort: 'recent',          // recent | stale | reps | name
   adjustOpen: false,           // fine-tune panel expanded
-  hmView: 'm1',                // m1 | m3 | y1
   pendingVideo: null,          // {videoId, start} waiting for API ready
 };
 const LEN_MIN = 0.5, LEN_MAX = 8;
@@ -1682,20 +1681,26 @@ function renderHmStats(){
   el.textContent = totalReps + ' reps · ' + daysPracticed + (daysPracticed === 1 ? ' day practiced' : ' days practiced');
 }
 
-function makeCell(ds, reps, goal, newCount){
+function makeCell(ds, reps, goal, newCount, future){
   const cell = document.createElement('div');
   cell.className = 'hm-cell';
+  if (future){
+    cell.dataset.future = '1';
+    return cell;
+  }
   cell.dataset.lv = hmLevel(reps, goal);
   if (newCount) cell.dataset.new = '1';
   cell.title = ds + ' · ' + reps + ' reps' + (newCount ? ' · ' + newCount + ' new clip(s)' : '');
   return cell;
 }
 
-/* one grid style for every view — same cell size, only the range changes */
-const HM_WEEKS = { m1: 5, m3: 13, y1: 52 };
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 function renderHeatmap(){
   const el = $('#heatmap');
+  const months = $('#hm-months');
   el.innerHTML = '';
+  months.innerHTML = '';
   const goal = settings.dailyGoal;
 
   const repsByDate = {};
@@ -1707,15 +1712,40 @@ function renderHeatmap(){
   });
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const weeks = HM_WEEKS[state.hmView] || 5;
-  const start = new Date(today);
-  start.setDate(start.getDate() - (weeks - 1) * 7 - today.getDay());
-  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)){
-    const ds = dateStr(d);
-    el.appendChild(makeCell(ds, repsByDate[ds] || 0, goal, newByDate[ds]));
+  const year = today.getFullYear();
+  $('#hm-year').textContent = year;
+
+  const jan1 = new Date(year, 0, 1);
+  const dec31 = new Date(year, 11, 31);
+  const lead = jan1.getDay();                       // blank days before Jan 1 in week 1
+  const totalDays = Math.round((dec31 - jan1) / 86400000) + 1;
+  const cols = Math.ceil((lead + totalDays) / 7);   // number of week columns
+  el.style.setProperty('--cols', cols);
+  months.style.setProperty('--cols', cols);
+
+  // leading placeholders so Jan 1 lands on its real weekday
+  for (let i = 0; i < lead; i++){
+    const pad = document.createElement('div');
+    pad.className = 'hm-cell hm-pad';
+    el.appendChild(pad);
   }
-  const sc = $('.heatmap-scroll');
-  sc.scrollLeft = sc.scrollWidth;
+  for (let d = new Date(jan1); d <= dec31; d.setDate(d.getDate() + 1)){
+    const ds = dateStr(d);
+    const future = d > today;
+    el.appendChild(makeCell(ds, repsByDate[ds] || 0, goal, newByDate[ds], future));
+  }
+
+  // month labels, each spanning from its first day's column to the next month's
+  for (let m = 0; m < 12; m++){
+    const col = Math.floor((lead + (new Date(year, m, 1) - jan1) / 86400000) / 7);
+    const nextCol = m === 11 ? cols : Math.floor((lead + (new Date(year, m + 1, 1) - jan1) / 86400000) / 7);
+    const lab = document.createElement('span');
+    lab.className = 'hm-month';
+    lab.textContent = MONTH_ABBR[m];
+    lab.style.gridColumn = (col + 1) + ' / ' + (nextCol + 1);
+    months.appendChild(lab);
+  }
+
   renderHmStats();
 }
 
@@ -2017,13 +2047,6 @@ $('#name-input').addEventListener('input', () => {
   settings.name = $('#name-input').value.trim().slice(0, 30);
   saveSettings();
   renderGreeting(todayTotal(), settings.dailyGoal);
-});
-$$('.hm-view').forEach(btn => {
-  btn.addEventListener('click', () => {
-    state.hmView = btn.dataset.view;
-    $$('.hm-view').forEach(b => b.classList.toggle('active', b === btn));
-    renderHeatmap();
-  });
 });
 $('#sync-url').addEventListener('change', () => {
   settings.syncUrl = $('#sync-url').value.trim();

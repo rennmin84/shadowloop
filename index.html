@@ -81,14 +81,15 @@
     <div class="card heatmap-card">
       <div class="card-head">
         <span>Practice heatmap</span>
-        <div class="hm-views">
-          <button class="hm-view active" data-view="m1">1M</button>
-          <button class="hm-view" data-view="m3">3M</button>
-          <button class="hm-view" data-view="y1">1Y</button>
-        </div>
+        <span id="hm-year" class="hm-year"></span>
       </div>
       <div id="hm-stats" class="hm-stats"></div>
-      <div class="heatmap-scroll"><div id="heatmap" class="heatmap"></div></div>
+      <div class="heatmap-scroll">
+        <div class="heatmap-wrap">
+          <div id="hm-months" class="hm-months"></div>
+          <div id="heatmap" class="heatmap"></div>
+        </div>
+      </div>
       <div class="hm-legend-row">
         <span class="legend">Less <i data-lv="0"></i><i data-lv="1"></i><i data-lv="2"></i><i data-lv="3"></i><i data-lv="4"></i> More · <i class="dot-demo"></i> new clip</span>
       </div>

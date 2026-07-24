@@ -221,14 +221,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .steps-note{margin:2px 0 0; padding-top:12px; border-top:1px dashed var(--border);}
 
 /* ---------- heatmap ---------- */
-.hm-views{display:flex; gap:2px; background:var(--surface2); border-radius:99px; padding:2px;}
-.hm-view{border:none; background:transparent; color:var(--text2); font-weight:600; font-size:12px; padding:4px 11px; border-radius:99px;}
-.hm-view.active{background:var(--surface); color:var(--text); box-shadow:var(--shadow);}
+.hm-year{color:var(--text2); font-weight:700; font-size:13px; font-variant-numeric:tabular-nums;}
 .hm-stats{color:var(--text2); font-size:12.5px; font-weight:600; margin-bottom:10px; font-variant-numeric:tabular-nums;}
 .heatmap-scroll{overflow-x:auto; padding-bottom:2px;}
-/* one cell size for every view — only the date range changes */
-.heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 13px); gap:3px; width:max-content;}
+.heatmap-wrap{width:max-content;}
+.hm-months{display:grid; grid-template-columns:repeat(var(--cols), 13px); gap:3px; margin-bottom:4px;}
+.hm-month{grid-row:1; font-size:10px; font-weight:600; color:var(--text2); white-space:nowrap; overflow:hidden;}
+.heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, 13px); grid-template-columns:repeat(var(--cols), 13px); gap:3px; width:max-content;}
 .hm-cell{width:13px; height:13px; border-radius:3.5px; background:var(--surface2); position:relative;}
+.hm-cell.hm-pad{background:transparent;}
+.hm-cell[data-future="1"]{background:transparent; box-shadow:inset 0 0 0 1px var(--surface2);}
 .hm-cell[data-lv="1"]{background:color-mix(in srgb, var(--accent) 25%, var(--surface2));}
 .hm-cell[data-lv="2"]{background:color-mix(in srgb, var(--accent) 50%, var(--surface2));}
 .hm-cell[data-lv="3"]{background:var(--accent);}
