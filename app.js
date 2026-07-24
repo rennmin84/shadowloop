@@ -2002,13 +2002,20 @@ async function handleUrlInput(inputEl){
 
 // Ask the Apps Script backend (server-side, no CORS) to read a page's
 // og:title / og:image / og:audio and hand back the playable audio URL.
+// Bounded by an 18s timeout: some sites (NPR et al. behind Akamai/Cloudflare
+// bot managers) tarpit the datacenter IP the proxy runs on, so we bail out
+// with a clear failure rather than freezing the UI on "Reading the episode…".
 async function fetchPageMeta(url){
+  const base = settings.syncUrl;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 18000);
   try {
-    const base = settings.syncUrl;
-    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'meta=' + encodeURIComponent(url));
+    const res = await fetch(base + (base.includes('?') ? '&' : '?') + 'meta=' + encodeURIComponent(url), { signal: ctrl.signal });
     const out = await res.json();
-    return (out && out.ok && out.meta) ? out.meta : null;
+    // a proxy-side {error:…} (auth, blocked host) is a miss, not usable meta
+    return (out && out.ok && out.meta && !out.meta.error) ? out.meta : null;
   } catch (e){ return null; }
+  finally { clearTimeout(timer); }
 }
 [['#url-load-hero', '#url-input-hero'],
  ['#url-load-practice', '#url-input-practice'],

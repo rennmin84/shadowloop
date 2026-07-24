@@ -23,10 +23,18 @@ function doGet(e) {
 
 function fetchMeta(pageUrl) {
   try {
+    // A real browser UA + Accept headers get us past sites that gate on the
+    // User-Agent. It does NOT beat Akamai/Cloudflare bot managers (NPR etc.),
+    // which fingerprint the datacenter IP this script runs from — those will
+    // stall or 403 no matter what we send here.
     var resp = UrlFetchApp.fetch(pageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Shadowloop/1.0)' }
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
     });
     var html = resp.getContentText();
     var audio = metaContent(html, 'og:audio:secure_url') ||
