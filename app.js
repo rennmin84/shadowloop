@@ -1681,26 +1681,29 @@ function renderHmStats(){
   el.textContent = totalReps + ' reps · ' + daysPracticed + (daysPracticed === 1 ? ' day practiced' : ' days practiced');
 }
 
-function makeCell(ds, reps, goal, newCount, future){
+function makeCell(ds, reps, goal, newCount, isToday){
   const cell = document.createElement('div');
   cell.className = 'hm-cell';
-  if (future){
-    cell.dataset.future = '1';
-    return cell;
-  }
   cell.dataset.lv = hmLevel(reps, goal);
   if (newCount) cell.dataset.new = '1';
+  if (isToday) cell.dataset.today = '1';
   cell.title = ds + ' · ' + reps + ' reps' + (newCount ? ' · ' + newCount + ' new clip(s)' : '');
   return cell;
 }
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// Monday-based weekday index: Mon = 0 (top row) … Sun = 6 (bottom row)
+const mondayIdx = d => (d.getDay() + 6) % 7;
+const DAY_LABELS = [[0, 'Mon'], [2, 'Wed'], [4, 'Fri']];
+
 function renderHeatmap(){
   const el = $('#heatmap');
   const months = $('#hm-months');
+  const days = $('#hm-days');
   el.innerHTML = '';
   months.innerHTML = '';
+  days.innerHTML = '';
   const goal = settings.dailyGoal;
 
   const repsByDate = {};
@@ -1712,18 +1715,19 @@ function renderHeatmap(){
   });
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayDs = dateStr(today);
   const year = today.getFullYear();
   $('#hm-year').textContent = year;
 
   const jan1 = new Date(year, 0, 1);
   const dec31 = new Date(year, 11, 31);
-  const lead = jan1.getDay();                       // blank days before Jan 1 in week 1
+  const lead = mondayIdx(jan1);                     // blank days before Jan 1 in week 1
   const totalDays = Math.round((dec31 - jan1) / 86400000) + 1;
   const cols = Math.ceil((lead + totalDays) / 7);   // number of week columns
   el.style.setProperty('--cols', cols);
   months.style.setProperty('--cols', cols);
 
-  // leading placeholders so Jan 1 lands on its real weekday
+  // leading placeholders so Jan 1 lands on its real weekday row
   for (let i = 0; i < lead; i++){
     const pad = document.createElement('div');
     pad.className = 'hm-cell hm-pad';
@@ -1731,8 +1735,7 @@ function renderHeatmap(){
   }
   for (let d = new Date(jan1); d <= dec31; d.setDate(d.getDate() + 1)){
     const ds = dateStr(d);
-    const future = d > today;
-    el.appendChild(makeCell(ds, repsByDate[ds] || 0, goal, newByDate[ds], future));
+    el.appendChild(makeCell(ds, repsByDate[ds] || 0, goal, newByDate[ds], ds === todayDs));
   }
 
   // month labels, each spanning from its first day's column to the next month's
@@ -1745,6 +1748,15 @@ function renderHeatmap(){
     lab.style.gridColumn = (col + 1) + ' / ' + (nextCol + 1);
     months.appendChild(lab);
   }
+
+  // weekday labels down the left (Mon top … Sun bottom)
+  DAY_LABELS.forEach(([row, txt]) => {
+    const lab = document.createElement('span');
+    lab.className = 'hm-day';
+    lab.textContent = txt;
+    lab.style.gridRow = row + 1;
+    days.appendChild(lab);
+  });
 
   renderHmStats();
 }
