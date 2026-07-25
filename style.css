@@ -270,6 +270,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .btn-group{display:flex; gap:8px;}
 #sync-url{width:100%; font-size:13px;}
 .sync-status{margin:-6px 2px 0;}
+.export-reminder{margin:2px 2px 0; color:var(--text2);}
+.export-reminder.warn{color:var(--danger); font-weight:600;}
 
 /* ---------- settings: sources / help card ---------- */
 .help-card{margin-bottom:26px;}

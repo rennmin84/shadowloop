@@ -122,7 +122,7 @@ let segments = lsLoad(LS.seg, []);
 let logs     = lsLoad(LS.log, []);
 let settings = Object.assign(
   { dailyGoal: 10, streakFreezes: 0, defaultSpeed: 1, defaultLen: 2, folders: [],
-    lastFolder: '', syncUrl: '', lastSyncAt: 0, micEnabled: false, name: 'Eric' },
+    lastFolder: '', syncUrl: '', lastSyncAt: 0, lastExportAt: 0, micEnabled: false, name: 'Eric' },
   lsLoad(LS.set, {})
 );
 // migrate older segments: ensure folder + len + spaced-repetition fields
@@ -1775,6 +1775,8 @@ function renderHeatmap(){
 
 /* ---------------- export / import ---------------- */
 function exportData(){
+  settings.lastExportAt = Date.now(); saveSettings();
+  updateExportReminder();
   const data = {
     schemaVersion: 2,
     exportedAt: new Date().toISOString(),
@@ -1844,6 +1846,28 @@ function setSyncStatus(msg){ $('#sync-status').textContent = msg; }
 function updateSyncStatus(){
   if (!settings.syncUrl){ setSyncStatus('Cloud sync is off — paste your Apps Script web app URL above.'); return; }
   setSyncStatus(settings.lastSyncAt ? 'Last synced ' + relTime(settings.lastSyncAt) : 'Not synced yet — press Sync now.');
+}
+
+// A nudge to keep an offline JSON copy: cloud sync only ever holds the latest
+// snapshot (no history), so a bad merge or an accidental delete has no undo.
+const EXPORT_NAG_DAYS = 14;
+function updateExportReminder(){
+  const el = $('#export-reminder');
+  if (!el) return;
+  if (!segments.length){ el.classList.add('hidden'); return; }   // nothing to lose yet
+  el.classList.remove('hidden');
+  const last = settings.lastExportAt || 0;
+  const days = last ? Math.floor((Date.now() - last) / 86400000) : Infinity;
+  if (!last){
+    el.textContent = '⚠️ Never backed up. Export a JSON copy to keep it safe — cloud sync only stores the latest snapshot, with no history.';
+    el.classList.add('warn');
+  } else if (days >= EXPORT_NAG_DAYS){
+    el.textContent = '⚠️ Last backup ' + relTime(last) + ' (' + days + ' days). A fresh Export is a good idea.';
+    el.classList.add('warn');
+  } else {
+    el.textContent = 'Last backup ' + relTime(last) + '.';
+    el.classList.remove('warn');
+  }
 }
 
 function scheduleSync(){
@@ -1941,7 +1965,7 @@ function showView(which){
   document.body.classList.toggle('on-practice', which === 'practice');
   if (which === 'home') renderDashboard();
   else if (which === 'clips') renderClips();
-  else if (which === 'settings') updateSyncStatus();
+  else if (which === 'settings'){ updateSyncStatus(); updateExportReminder(); }
 }
 
 /* ---------------- event wiring ---------------- */
