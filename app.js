@@ -745,9 +745,9 @@ function seekRelative(delta){
   cancelMark();
   const target = clamp(round1(t + delta), 0, state.duration || 36000);
   mediaSeek(target);
+  // A/D move the clip start along with the playhead — whether paused OR playing.
+  setStart(target);
   if (!playing){
-    // paused jump: move the clip start along with the playhead
-    setStart(target);
     pausedLastT = target;
     if (document.body.dataset.playstate === 'waiting') setPlayVisual('idle');
   }
@@ -1241,7 +1241,8 @@ function openSaveModal(){
   $('#seg-folder-new').value = '';
 
   $('#modal-backdrop').classList.remove('hidden');
-  setTimeout(() => $('#seg-label').focus(), 50);
+  // Line is what you actually type each time (Name auto-fills from the title).
+  setTimeout(() => $('#seg-note').focus(), 50);
 }
 function closeSaveModal(){ $('#modal-backdrop').classList.add('hidden'); }
 
@@ -2141,24 +2142,36 @@ $('#import-file').addEventListener('change', e => {
 document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if ($('#view-practice').classList.contains('hidden')) return;
 
+  // Cmd/Ctrl+Enter opens the Save dialog straight from the practice view
+  // (on web there's no modal up yet). Once it's open, the modal's own handler
+  // takes Cmd/Ctrl+Enter to save, so only fire this while it's still hidden.
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter'){
+    if ($('#modal-backdrop').classList.contains('hidden')){ e.preventDefault(); openSaveModal(); }
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  // Match on e.code (the physical key), not e.key: a Chinese/Japanese IME
+  // rewrites e.key while composing, but KeyA stays KeyA regardless of IME or
+  // layout — so the letter shortcuts keep working with 注音/拼音 switched on.
+  const code = e.code;
   const k = e.key;
-  if (k === 's' || k === 'S'){
+  if (code === 'KeyS'){
     // S is the only play/pause key
     e.preventDefault();
     if (playerReady){ if (mediaPlaying()) mediaPause(); else mediaPlay(); }
-  } else if (k === ' ' || k === 'r' || k === 'R' || k === 'Enter'){
+  } else if (code === 'KeyR' || code === 'Space' || k === ' ' || k === 'Enter'){
     // Space now replays the clip
     e.preventDefault(); doReplay();
-  } else if (k === 'a' || k === 'A'){
+  } else if (code === 'KeyA'){
     e.preventDefault(); seekRelative(e.shiftKey ? -10 : -1);   // move the start back/forward
-  } else if (k === 'd' || k === 'D'){
+  } else if (code === 'KeyD'){
     e.preventDefault(); seekRelative(e.shiftKey ? 10 : 1);
-  } else if (k === 'j' || k === 'J'){
+  } else if (code === 'KeyJ'){
     e.preventDefault(); changeLen(e.shiftKey ? -10 : -1); scheduleAudition('b');   // move the end back/forward
-  } else if (k === 'l' || k === 'L'){
+  } else if (code === 'KeyL'){
     e.preventDefault(); changeLen(e.shiftKey ? 10 : 1); scheduleAudition('b');
   } else if (k === 'ArrowLeft' || k === 'ArrowRight'){
     e.preventDefault();
