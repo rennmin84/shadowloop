@@ -1008,19 +1008,33 @@ function refreshCurrentSegment(){
   state.currentSegmentId = findMatchingSegmentId();
 }
 
-/* ---------------- press-and-hold repeat (nudge buttons) ---------------- */
+/* ---------------- press-and-hold repeat (nudge buttons) ----------------
+   Robustness matters here: if a pointerup is ever missed (capture stolen by a
+   gesture, a re-layout under the finger, a duplicate pointerdown), the old
+   version could leave an interval running or the pointer captured — which made
+   a button feel randomly "dead" on the next tap. So: every press first tears
+   down any prior hold, we track and explicitly release the captured pointer,
+   and a document-level release guarantees teardown even off the button. */
 function bindHold(btn, fn){
-  let delayT = null, repeatT = null;
+  let delayT = null, repeatT = null, holdPid = null;
+  const stop = () => {
+    clearTimeout(delayT); clearInterval(repeatT); delayT = repeatT = null;
+    if (holdPid != null){ try { btn.releasePointerCapture(holdPid); } catch (e) {} holdPid = null; }
+  };
   const start = e => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
+    stop();                        // never inherit a previous hold's timer/capture
     fn();
     delayT = setTimeout(() => { repeatT = setInterval(fn, 150); }, 400);
+    holdPid = e.pointerId;
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
   };
-  const end = () => { clearTimeout(delayT); clearInterval(repeatT); delayT = repeatT = null; };
   btn.addEventListener('pointerdown', start);
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btn.addEventListener(ev, end));
+  btn.addEventListener('pointerup', stop);
+  btn.addEventListener('pointercancel', stop);
+  document.addEventListener('pointerup', stop);      // release-anywhere safety net
+  document.addEventListener('pointercancel', stop);
   btn.addEventListener('contextmenu', e => e.preventDefault());
 }
 
@@ -1154,6 +1168,19 @@ function updateAll(){
   renderClipSummary();
   renderStrip();
   updateRepButton(false);
+  updateNowLine();
+}
+
+// Show the saved clip's Line (falling back to its Name) right under the video,
+// so opening a clip from the library — or saving one just now — confirms at a
+// glance exactly which line is loaded.
+function updateNowLine(){
+  const el = $('#now-line');
+  if (!el) return;
+  const seg = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
+  const text = seg ? ((seg.note && seg.note.trim()) || seg.label || '') : '';
+  el.textContent = text;
+  el.classList.toggle('hidden', !text);
 }
 function updateRepButton(bump){
   const btn = $('#replay-btn');
@@ -1274,6 +1301,7 @@ function saveFromModal(){
   closeSaveModal();
   toast('Saved “' + label.slice(0, 20) + (label.length > 20 ? '…' : '') + '”');
   updateRepButton(false);
+  updateNowLine();
   renderDashboard();
   renderSegmentList();
 }
@@ -1859,10 +1887,10 @@ function updateExportReminder(){
   const last = settings.lastExportAt || 0;
   const days = last ? Math.floor((Date.now() - last) / 86400000) : Infinity;
   if (!last){
-    el.textContent = '⚠️ Never backed up. Export a JSON copy to keep it safe — cloud sync only stores the latest snapshot, with no history.';
+    el.textContent = '⚠️ Never backed up — export a JSON copy to be safe.';
     el.classList.add('warn');
   } else if (days >= EXPORT_NAG_DAYS){
-    el.textContent = '⚠️ Last backup ' + relTime(last) + ' (' + days + ' days). A fresh Export is a good idea.';
+    el.textContent = '⚠️ Last backup ' + days + ' days ago — a fresh export is a good idea.';
     el.classList.add('warn');
   } else {
     el.textContent = 'Last backup ' + relTime(last) + '.';

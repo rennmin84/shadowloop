@@ -36,7 +36,7 @@ python3 -m http.server 8000   # 在專案根目錄
 
 備註：app.js 裡 top-level `function` 宣告會掛到 window 全域；`let/const` 狀態則不會。
 
-## 鍵盤快捷鍵（Practice view）
+## 鍵盤快捷鍵（Studio 分頁，內部 view id 仍是 `view-practice`）
 
 - `S` play/pause、`Space`/`R`/`Enter` replay
 - `A`/`D` 前後移動 start（含播放中；`Shift` = 10 秒）
