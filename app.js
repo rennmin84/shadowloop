@@ -2019,9 +2019,11 @@ function resetForNewSource(){
 // which is the whole point of hosting it yourself instead of the ad-stitched
 // podcast feed. Returns '' when it isn't a share link we recognise.
 function directShareUrl(raw){
-  // Dropbox previews an HTML page unless dl=1 — force the raw file.
+  // Dropbox previews an HTML page unless dl=1 — force the raw file, and go
+  // straight to the content host so range requests (seeking) skip the redirect.
   if (/dropbox\.com/i.test(raw)){
-    let u = raw.replace(/([?&])dl=0\b/i, '$1dl=1');
+    let u = raw.replace(/^https?:\/\/(www\.)?dropbox\.com/i, 'https://dl.dropboxusercontent.com')
+               .replace(/([?&])dl=0\b/i, '$1dl=1');
     if (!/[?&]dl=1\b/i.test(u)) u += (u.includes('?') ? '&' : '?') + 'dl=1';
     return u;
   }
