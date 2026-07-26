@@ -323,8 +323,22 @@
 
     <div class="help-steps">
       <p class="help-steps-title">Adding a podcast episode</p>
-      <p class="dim small">Quick way — paste the episode's page URL into <b>Load</b>; title, cover and audio load on their own.</p>
-      <p class="dim small">Stable way (recommended for clips you'll revisit) — run <code>tools/add-episode.sh &lt;episode URL&gt;</code>: it downloads, converts to a small constant-bitrate file, uploads to your R2 bucket, and prints one URL to paste. See <b>R2-SETUP.md</b> for the one-time setup.</p>
+
+      <p class="help-sub">Quick way (one-off listen)</p>
+      <p class="dim small">Paste the episode's page URL into <b>Load</b>; title, cover and audio load on their own. Fine to try a clip, but the audio can drift over time.</p>
+
+      <p class="help-sub">Stable way (recommended — run once per episode)</p>
+      <p class="dim small">First time only: set up Cloudflare R2 + rclone by following <b>R2-SETUP.md</b> in the repo, and fill in the CONFIG block at the top of <code>tools/add-episode.sh</code>.</p>
+      <p class="dim small">Then, in Terminal, from the project folder, add any episode with its page URL:</p>
+      <code class="help-cmd">./tools/add-episode.sh https://www.npr.org/…/episode-name</code>
+      <p class="dim small">It downloads the audio + cover, shrinks the audio to a fast-seeking file, uploads both to your R2 bucket, and prints one URL. Copy that URL and paste it into <b>Load</b> — the title and cover fill in automatically.</p>
+      <p class="dim small"><b>Note:</b> type the <code>./</code> at the front — it tells the shell to run the script sitting in that folder.</p>
+
+      <p class="help-sub">Getting a URL back later</p>
+      <p class="dim small">Every episode you add is remembered. To see them all and copy any URL again:</p>
+      <code class="help-cmd">./tools/add-episode.sh --list</code>
+      <p class="dim small">Re-running the same episode URL is also safe — it notices the file is already on R2 and just re-prints the URL instantly. And any clip you've already <b>saved</b> keeps its URL, so on your phone you just open <b>Clips</b> (with cloud sync on) — no need to paste anything.</p>
+
       <p class="dim small help-note">Cover not filling in on the quick way? Right-click the page's <b>Download</b> button → <b>Copy link</b> and paste that direct <code>.mp3</code>, or add a Cover image URL when you save the clip.</p>
     </div>
   </section>
