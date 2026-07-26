@@ -130,6 +130,15 @@
 <!-- ============ Practice ============ -->
 <main id="view-practice" class="view hidden">
   <div class="practice-layout">
+    <div class="video-head">
+      <div id="video-title" class="video-title"></div>
+      <button id="new-video-toggle" class="text-btn">＋ New video</button>
+    </div>
+    <div id="new-video-row" class="url-row hidden">
+      <input id="url-input-practice2" type="url" inputmode="url" placeholder="YouTube or podcast link…" autocomplete="off">
+      <button id="url-load-practice2" class="btn accent">Load</button>
+    </div>
+
     <div id="player-wrap" class="player-wrap">
       <div id="player"></div>
       <img id="audio-cover" class="audio-cover hidden" alt="Podcast cover">
@@ -149,15 +158,7 @@
       <button id="skip-fwd" class="btn skip-btn" title="Move the start forward 1s (D) — hold to keep stepping">1s »</button>
     </div>
 
-    <div class="video-head">
-      <div id="video-title" class="video-title"></div>
-      <button id="new-video-toggle" class="text-btn">＋ New video</button>
-    </div>
     <p id="now-line" class="now-line hidden"></p>
-    <div id="new-video-row" class="url-row hidden">
-      <input id="url-input-practice2" type="url" inputmode="url" placeholder="YouTube or podcast link…" autocomplete="off">
-      <button id="url-load-practice2" class="btn accent">Load</button>
-    </div>
 
     <div class="clip-controls">
       <p id="clip-unset-hint" class="dim small clip-hint">Play the video — when your line begins, tap <b>⏺ Line starts</b> below, then tap again when it ends. Pausing the video also sets the start.</p>
