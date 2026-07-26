@@ -491,14 +491,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .transport-hint{flex:1; text-align:center; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .skip-btn{min-width:74px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
 
-.video-head{display:flex; align-items:baseline; gap:10px; padding:0 2px;}
-.video-title{font-family:var(--font-display); font-weight:800; font-size:20px; line-height:1.3; padding:0; flex:1; min-width:0; overflow-wrap:anywhere;}
+.video-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; padding:0 2px;}
+.video-title{font-family:var(--font-display); font-weight:800; font-size:20px; line-height:1.3; padding:0; flex:1 1 auto; min-width:0; overflow-wrap:anywhere;}
 .now-line{
   margin:8px 2px 2px; padding:12px 15px; border-left:4px solid var(--accent);
   background:var(--accent-tint); border-radius:0 12px 12px 0;
   color:var(--accent-deep); font-weight:700; font-size:19px; line-height:1.45;
 }
-#new-video-toggle{flex-shrink:0; white-space:nowrap;}
+#new-video-toggle{flex-shrink:0; white-space:nowrap; margin-left:auto;}
 .text-btn{border:none; background:none; color:var(--accent); font-weight:700; font-size:13.5px; padding:5px 8px; border-radius:8px;}
 .text-btn:hover{background:var(--accent-tint);}
 
@@ -623,6 +623,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
   .edge-pair{grid-template-columns:1fr; gap:8px;}
   .edge-span{flex-direction:row;}
   .edge-span-line{width:auto; height:2px;}
+  /* practice header: title takes the whole line, "New video" drops below it
+     (right-aligned) so a long title never collides with the button */
+  .video-title{flex-basis:100%; font-size:17px;}
+  #new-video-toggle{margin-top:2px; padding:4px 8px;}
+  .now-line{font-size:17px; padding:10px 13px;}
+  .transport-hint{font-size:11px;}
 }
 
 /* ---------- echo bar: record & compare ---------- */
