@@ -65,8 +65,10 @@ ffmpeg -loglevel error -y -i "$mp3src" \
   -c:a libmp3lame -b:a "$BITRATE" -ac 1 -map_metadata 0 -id3v2_version 3 "$cbr"
 
 echo "→ uploading to R2 (${REMOTE}:${BUCKET})…"
-rclone copyto "$cbr" "${REMOTE}:${BUCKET}/${stem}.mp3"
-[ -n "$img" ] && rclone copyto "$img" "${REMOTE}:${BUCKET}/${stem}.jpg"
+# --s3-no-check-bucket: R2 object tokens can't CreateBucket, and rclone's
+# pre-upload existence check would 403 without it (the bucket already exists).
+rclone copyto --s3-no-check-bucket "$cbr" "${REMOTE}:${BUCKET}/${stem}.mp3"
+[ -n "$img" ] && rclone copyto --s3-no-check-bucket "$img" "${REMOTE}:${BUCKET}/${stem}.jpg"
 
 echo
 echo "Done ✓  Paste this into Shadowloop (cover loads automatically):"

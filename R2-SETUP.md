@@ -61,7 +61,7 @@ brew install yt-dlp rclone
 ```
 
 **2. 執行設定精靈**
-```
+```auto
 rclone config
 ```
 它會一問一答，照下面回答（**括號是說明，不用打**）：
@@ -84,11 +84,27 @@ Keep this "r2" remote?  y
 ```
 最後選 **q** 離開設定精靈。
 
-**3. 測試連線**（會列出你的 bucket）
+**3. 讓 rclone 別嘗試建立 bucket**（R2 必做，否則上傳會 403）
 ```
-rclone lsd r2:
+rclone config update r2 no_check_bucket true
 ```
-有看到 `shadowloop` 就成功了。
+> R2 的 API token 沒有「建立 bucket」的權限，而 rclone 上傳前預設會先檢查／嘗試建立
+> bucket，導致 `AccessDenied`。這行讓它跳過該檢查（bucket 你已經建好了）。
+
+**4. 測試連線**（列出 bucket 內容，空的話沒輸出＝正常）
+```
+rclone ls r2:shadowloop
+```
+> 註：不要用 `rclone lsd r2:`（列出「所有」bucket），那是帳號層級操作，R2 token
+> 通常沒權限、會回 403 —— 那是正常的，不代表設定錯。直接測 `r2:shadowloop` 才準。
+
+**5. 往返測試**（確認真的能上傳、能刪）
+```
+printf 'ok\n' > /tmp/_r2test.txt
+rclone copyto /tmp/_r2test.txt r2:shadowloop/_r2test.txt   # 應顯示無錯誤
+rclone ls r2:shadowloop                                    # 應看到 _r2test.txt
+rclone delete r2:shadowloop/_r2test.txt                    # 清掉
+```
 
 ---
 
