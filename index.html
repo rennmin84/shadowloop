@@ -300,23 +300,32 @@
         </svg>
       </span>
       <span class="src-body">
-        <span class="src-name">Podcast episode</span>
-        <span class="src-desc">The episode's <b>web page</b> link — the title, cover art and audio fill in automatically. Works for NPR and most podcast sites.</span>
+        <span class="src-name">Podcast episode page <span class="dim">(quick, may drift)</span></span>
+        <span class="src-desc">The episode's <b>web page</b> link — title, cover and audio fill in automatically. Fine for a one-off listen, but podcasts re-insert ads on every request, so a clip you save today can be seconds off next week. For clips you'll come back to, host your own copy ↓</span>
         <span class="src-links">
-          <a href="https://www.npr.org/podcasts/" target="_blank" rel="noopener noreferrer">All podcasts ↗</a>
           <a href="https://www.npr.org/podcasts/510338/life-kit" target="_blank" rel="noopener noreferrer">Life Kit ↗</a>
         </span>
       </span>
     </div>
 
+    <div class="src-row">
+      <span class="src-ico" aria-hidden="true">
+        <svg viewBox="0 0 44 20" width="44" height="20">
+          <rect width="44" height="20" rx="4" fill="#0B8A6B"></rect>
+          <text x="22" y="14.5" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="11" letter-spacing="1" fill="#fff">mp3</text>
+        </svg>
+      </span>
+      <span class="src-body">
+        <span class="src-name">Your own hosted file <span class="dim">(stable, cross-device)</span></span>
+        <span class="src-desc">A direct link to an <code>.mp3</code> you host yourself (Cloudflare R2, Dropbox…). The timeline never drifts and phone + computer stay in sync. Name a cover image the same as the audio (<code>ep.mp3</code> + <code>ep.jpg</code>) and it loads automatically; the title comes from the filename.</span>
+      </span>
+    </div>
+
     <div class="help-steps">
       <p class="help-steps-title">Adding a podcast episode</p>
-      <ol>
-        <li>Open the episode's page (e.g. on <a href="https://www.npr.org" target="_blank" rel="noopener noreferrer">npr.org</a>).</li>
-        <li>Copy the page URL from your browser's address bar.</li>
-        <li>Paste it into the <b>Load</b> box — title, cover and audio load on their own.</li>
-      </ol>
-      <p class="dim small help-note">Cover not filling in? A few sites hide their audio or block the reader — right-click the <b>Download</b> button → <b>Copy link</b> and paste that direct <code>.mp3</code> instead. It plays fine, just without the art.</p>
+      <p class="dim small">Quick way — paste the episode's page URL into <b>Load</b>; title, cover and audio load on their own.</p>
+      <p class="dim small">Stable way (recommended for clips you'll revisit) — run <code>tools/add-episode.sh &lt;episode URL&gt;</code>: it downloads, converts to a small constant-bitrate file, uploads to your R2 bucket, and prints one URL to paste. See <b>R2-SETUP.md</b> for the one-time setup.</p>
+      <p class="dim small help-note">Cover not filling in on the quick way? Right-click the page's <b>Download</b> button → <b>Copy link</b> and paste that direct <code>.mp3</code>, or add a Cover image URL when you save the clip.</p>
     </div>
   </section>
 </main>
