@@ -32,10 +32,20 @@ BITRATE="64k"                            # audio bitrate (96k/128k for more fide
 # ────────────────────────────────────────────────────────────────────────
 
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+# A running list of everything you've added, so you can always find a URL
+# again (kept next to this script, git-ignored — it's your private index).
+MANIFEST="$(cd "$(dirname "$0")" && pwd)/episodes.md"
 
 url="${1:-}"
+
+# `add-episode.sh --list` — just print everything you've added so far.
+if [ "$url" = "--list" ] || [ "$url" = "-l" ]; then
+  [ -f "$MANIFEST" ] && cat "$MANIFEST" || echo "No episodes added yet."
+  exit 0
+fi
+
 if [ -z "$url" ]; then
-  echo "usage: add-episode.sh <episode page URL>" >&2
+  echo "usage: add-episode.sh <episode page URL>   (or --list to see past URLs)" >&2
   exit 1
 fi
 if [[ "$PUBLIC_BASE" == *XXXX* ]]; then
@@ -45,6 +55,12 @@ fi
 for bin in ffmpeg rclone python3 curl; do
   command -v "$bin" >/dev/null 2>&1 || { echo "missing: $bin" >&2; exit 1; }
 done
+
+# Append "- [title](url)" to the manifest unless that URL is already listed.
+record() {  # record <title> <url>
+  [ -f "$MANIFEST" ] || printf '# Episodes on R2 (paste any URL into Shadowloop)\n\n' > "$MANIFEST"
+  grep -qF "$2" "$MANIFEST" 2>/dev/null || printf -- '- [%s](%s)\n' "$1" "$2" >> "$MANIFEST"
+}
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 
@@ -143,6 +159,20 @@ cover="$(printf '%s\n' "$meta" | sed -n '3p')"
 stem="$(printf '%s\n' "$meta" | sed -n '4p')"
 echo "   title: $title"
 
+final_url="${PUBLIC_BASE}/${stem}.mp3"
+
+# Already on R2? Skip the whole download/convert/upload and just hand back the
+# URL — so re-running the same episode another day is instant and idempotent.
+if [ "${2:-}" != "--force" ] && rclone lsf --s3-no-check-bucket "${REMOTE}:${BUCKET}/${stem}.mp3" >/dev/null 2>&1 \
+   && [ -n "$(rclone lsf --s3-no-check-bucket "${REMOTE}:${BUCKET}/${stem}.mp3" 2>/dev/null)" ]; then
+  record "$title" "$final_url"
+  echo
+  echo "Already on R2 ✓  Paste this into Shadowloop:"
+  echo "  ${final_url}"
+  echo "  (re-run with '--force' to re-upload a fresh copy)"
+  exit 0
+fi
+
 echo "→ downloading audio…"
 curl -fsL --max-time 180 -A "$UA" -o "$work/src.mp3" "$audio" \
   || { echo "audio download failed" >&2; exit 1; }
@@ -161,6 +191,8 @@ echo "→ uploading to R2 (${REMOTE}:${BUCKET})…"
 rclone copyto --s3-no-check-bucket "$work/${stem}.mp3" "${REMOTE}:${BUCKET}/${stem}.mp3"
 [ -n "$cover" ] && rclone copyto --s3-no-check-bucket "$work/cover.jpg" "${REMOTE}:${BUCKET}/${stem}.jpg"
 
+record "$title" "$final_url"
 echo
 echo "Done ✓  Paste this into Shadowloop (cover loads automatically):"
-echo "  ${PUBLIC_BASE}/${stem}.mp3"
+echo "  ${final_url}"
+echo "  (saved to tools/episodes.md — run './tools/add-episode.sh --list' anytime)"
