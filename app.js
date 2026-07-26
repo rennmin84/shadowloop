@@ -449,11 +449,39 @@ function loadAudio(url, start = 0, meta){
   ensureAudioEl();
   setMediaMode('audio');
   showAudioCover(state.image);
+  if (!state.image) autoCoverFrom(url);   // path-based host: pick up the same-name image
   $('#player-placeholder').classList.add('hidden');
   $('#video-title').textContent = '🎧 ' + state.title;
   audioEl.src = url;
   audioEl.load();
   updateAll();
+}
+
+// From a direct audio URL, try the same-named image sitting next to it as the
+// cover — so on a path-based host (R2, a static server) you upload ep1.mp3 +
+// ep1.jpg, paste only the mp3 link, and the cover comes along for free. Opaque
+// links (Dropbox's random per-file ids) simply won't match, and it no-ops.
+function autoCoverFrom(audioUrl){
+  const clean = String(audioUrl).replace(/[?#].*$/, '');
+  if (!/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)$/i.test(clean)) return;
+  const stem = clean.replace(/\.[^./]+$/, '');
+  const exts = ['jpg', 'jpeg', 'png', 'webp'];
+  let i = 0;
+  (function tryNext(){
+    if (i >= exts.length) return;
+    const url = stem + '.' + exts[i++];
+    const img = new Image();
+    img.onload = () => {
+      if (state.audioUrl === audioUrl && !state.image){   // still this track, no cover set meanwhile
+        state.image = url;
+        if (mediaKind === 'audio') showAudioCover(url);
+        const field = $('#seg-image');
+        if (field && !field.value) field.value = url;
+      }
+    };
+    img.onerror = tryNext;
+    img.src = url;
+  })();
 }
 
 function onPlayerReady(){
