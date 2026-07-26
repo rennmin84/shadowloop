@@ -2014,6 +2014,27 @@ function resetForNewSource(){
   clearTake();
   showView('practice');
 }
+// Turn a cloud "share page" link into a direct, streamable media URL, so your
+// own frozen copy of an episode plays (and seeks) the same on every device —
+// which is the whole point of hosting it yourself instead of the ad-stitched
+// podcast feed. Returns '' when it isn't a share link we recognise.
+function directShareUrl(raw){
+  // Dropbox previews an HTML page unless dl=1 — force the raw file.
+  if (/dropbox\.com/i.test(raw)){
+    let u = raw.replace(/([?&])dl=0\b/i, '$1dl=1');
+    if (!/[?&]dl=1\b/i.test(u)) u += (u.includes('?') ? '&' : '?') + 'dl=1';
+    return u;
+  }
+  // Google Drive share link -> the uc download endpoint (the file must be
+  // shared "Anyone with the link"). Heads up: Drive often refuses byte-range
+  // requests, so seeking to a timestamp can stall on larger episodes.
+  if (/drive\.google\.com/i.test(raw)){
+    const m = raw.match(/\/file\/d\/([\w-]{10,})/) || raw.match(/[?&]id=([\w-]{10,})/);
+    if (m) return 'https://drive.google.com/uc?export=download&id=' + m[1];
+  }
+  return '';
+}
+
 async function handleUrlInput(inputEl){
   const raw = inputEl.value.trim();
   const parsed = parseYouTubeUrl(raw);
@@ -2021,6 +2042,13 @@ async function handleUrlInput(inputEl){
     inputEl.value = '';
     resetForNewSource();
     loadVideo(parsed.videoId, parsed.start);
+    return;
+  }
+  const share = directShareUrl(raw);
+  if (share){
+    inputEl.value = '';
+    resetForNewSource();
+    loadAudio(share, 0);               // Dropbox / Drive direct file
     return;
   }
   if (isDirectAudioUrl(raw)){
