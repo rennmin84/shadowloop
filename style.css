@@ -433,6 +433,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 }
 .audio-cover.hidden{ display:none; }
 .audio-player{ width:100%; max-width:520px; }
+/* buffering badge: sits over the audio stage while the track loads/seeks */
+.audio-loading{
+  position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:5;
+  display:flex; align-items:center; gap:8px;
+  padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:700;
+  color:#fff; background:rgba(0,0,0,.66); backdrop-filter:blur(4px);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.audio-loading::before{
+  content:""; width:12px; height:12px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+  animation:audio-spin .7s linear infinite;
+}
+.audio-loading.hidden{ display:none; }
+@keyframes audio-spin{ to{ transform:rotate(360deg); } }
 .audio-player.hidden{ display:none; }
 .seg-thumb-audio{ display:flex; align-items:center; justify-content:center; font-size:22px; }
 .player-placeholder{

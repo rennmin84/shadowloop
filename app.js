@@ -233,6 +233,45 @@ let mediaKind = 'yt';            // 'yt' | 'audio'
 let audioEl = null;              // the <audio> element when mediaKind === 'audio'
 let audioPendingSeek = null;     // seek to apply once the audio's duration is known
 
+// Remote audio isn't instantly playable at a given time: after loading or
+// seeking it buffers, so opening a saved clip has a real wait. Track that
+// "busy" state to show a loading badge and hold Replay disabled until the
+// track can actually play — otherwise a tap just silently does nothing.
+let audioBusy = false, audioBusyStart = 0, audioBusyTimer = null;
+function setAudioBusy(on){
+  if (mediaKind !== 'audio') on = false;
+  const badge = $('#audio-loading');
+  if (on){
+    if (!audioBusy){ audioBusy = true; audioBusyStart = performance.now(); }
+    if (badge){
+      const tick = () => {
+        if (!badge) return;
+        badge.textContent = 'Loading… ' + ((performance.now() - audioBusyStart) / 1000).toFixed(1) + 's';
+      };
+      tick();
+      badge.classList.remove('hidden');
+      clearInterval(audioBusyTimer);
+      audioBusyTimer = setInterval(tick, 100);
+    }
+  } else {
+    if (audioBusy) console.log('[audio] playable after ' + Math.round(performance.now() - audioBusyStart) + 'ms');
+    audioBusy = false;
+    clearInterval(audioBusyTimer); audioBusyTimer = null;
+    if (badge) badge.classList.add('hidden');
+  }
+  updateRepButton(false);
+}
+
+// Fallback title for a bare media file: its filename, tidied up.
+// …/NPR%20Life%20Kit%20-%20Fibermaxx.mp3 -> "NPR Life Kit - Fibermaxx"
+function titleFromUrl(url){
+  try {
+    let name = decodeURIComponent(String(url).replace(/[?#].*$/, '').split('/').pop() || '');
+    return name.replace(/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)$/i, '')
+               .replace(/[_+]+/g, ' ').replace(/\s+/g, ' ').trim();
+  } catch (e){ return ''; }
+}
+
 function hasSource(){ return !!(state.videoId || state.audioUrl); }
 
 function mediaPlaying(){
@@ -338,7 +377,7 @@ function setMediaMode(kind){
   if (audioEl) audioEl.classList.toggle('hidden', kind !== 'audio');
   const frame = $('#player');
   if (frame) frame.classList.toggle('hidden', kind === 'audio');
-  if (kind !== 'audio') showAudioCover(null);
+  if (kind !== 'audio'){ showAudioCover(null); setAudioBusy(false); }
 }
 
 // podcast cover art on the audio stage (player-wrap)
@@ -376,13 +415,20 @@ function ensureAudioEl(){
     updateAll();
   });
   audioEl.addEventListener('durationchange', setDur);
-  audioEl.addEventListener('playing', () => { if (mediaKind === 'audio') onMediaPlaying(); });
+  audioEl.addEventListener('playing', () => { if (mediaKind === 'audio'){ setAudioBusy(false); onMediaPlaying(); } });
   audioEl.addEventListener('pause',   () => { if (mediaKind === 'audio') onMediaPaused(); });
-  audioEl.addEventListener('waiting', () => { if (mediaKind === 'audio') onMediaBuffering(); });
+  audioEl.addEventListener('waiting', () => { if (mediaKind === 'audio'){ setAudioBusy(true); onMediaBuffering(); } });
   audioEl.addEventListener('ended',   () => { if (mediaKind === 'audio') onMediaEnded(); });
+  // buffering lifecycle -> the Loading badge + Replay gate
+  audioEl.addEventListener('loadstart', () => { if (mediaKind === 'audio') setAudioBusy(true); });
+  audioEl.addEventListener('seeking',   () => { if (mediaKind === 'audio') setAudioBusy(true); });
+  audioEl.addEventListener('seeked',    () => { if (mediaKind === 'audio' && audioEl.readyState >= 3) setAudioBusy(false); });
+  audioEl.addEventListener('canplay',      () => { if (mediaKind === 'audio') setAudioBusy(false); });
+  audioEl.addEventListener('canplaythrough', () => { if (mediaKind === 'audio') setAudioBusy(false); });
   audioEl.addEventListener('error',   () => {
     if (mediaKind !== 'audio') return;
     playerReady = false;
+    setAudioBusy(false);
     toast("Couldn't load that audio — use a direct .mp3 link, not a web page", { duration: 7000 });
   });
   return audioEl;
@@ -394,10 +440,11 @@ function loadAudio(url, start = 0, meta){
   state.videoId = null;
   state.audioUrl = url;
   state.url = url;
-  state.title = (meta && meta.title) || 'Audio track';
+  state.title = (meta && meta.title) || titleFromUrl(url) || 'Audio track';
   state.image = (meta && meta.image) || null;
   state.duration = 0;
   playerReady = false;
+  setAudioBusy(true);
   audioPendingSeek = start || 0;
   ensureAudioEl();
   setMediaMode('audio');
@@ -1184,7 +1231,8 @@ function updateNowLine(){
 }
 function updateRepButton(bump){
   const btn = $('#replay-btn');
-  const ready = playerReady && state.a != null && state.b != null && state.b > state.a;
+  // A buffering audio track isn't playable yet — hold Replay until it's ready.
+  const ready = playerReady && !audioBusy && state.a != null && state.b != null && state.b > state.a;
   const saved = !!state.currentSegmentId;
   const wrap = $('#rep-count');
   const watching = document.body.dataset.playstate === 'watching';
@@ -1198,8 +1246,8 @@ function updateRepButton(bump){
     wrap.classList.add('hidden');
   } else {
     btn.disabled = !ready;
-    $('.replay-icon').textContent = '▶';
-    $('#replay-label').textContent = saved ? 'Replay' : (ready ? 'Replay (unsaved)' : 'Replay');
+    $('.replay-icon').textContent = audioBusy ? '…' : '▶';
+    $('#replay-label').textContent = audioBusy ? 'Loading…' : (saved ? 'Replay' : (ready ? 'Replay (unsaved)' : 'Replay'));
     if (saved){
       wrap.classList.remove('hidden');
       $('#rep-count-num').textContent = segTodayReps(state.currentSegmentId);
@@ -1248,6 +1296,7 @@ function openSaveModal(){
 
   $('#seg-label').value = seg ? seg.label : defaultLabel();
   $('#seg-note').value  = seg ? seg.note : '';
+  $('#seg-image').value = (seg ? seg.image : state.image) || '';
 
   // folder select
   const sel = $('#seg-folder');
@@ -1287,13 +1336,16 @@ function resolveFolderFromModal(){
 function saveFromModal(){
   const label  = $('#seg-label').value.trim() || defaultLabel();
   const note   = $('#seg-note').value.trim();
+  const image  = $('#seg-image').value.trim() || null;
   const folder = resolveFolderFromModal();
   settings.lastFolder = folder; saveSettings();
+  state.image = image;                                   // keep the live player cover in sync
+  if (mediaKind === 'audio') showAudioCover(image);
   let seg = state.currentSegmentId ? segments.find(s => s.id === state.currentSegmentId) : null;
   if (seg){
-    Object.assign(seg, { label, note, folder, a: state.a, b: state.b, len: state.len, title: state.title || seg.title, image: state.image || seg.image || null });
+    Object.assign(seg, { label, note, folder, a: state.a, b: state.b, len: state.len, title: state.title || seg.title, image });
   } else {
-    seg = makeSegment({ label, note, folder });
+    seg = makeSegment({ label, note, folder, image });
     segments.push(seg);
     state.currentSegmentId = seg.id;
   }

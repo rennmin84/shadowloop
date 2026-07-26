@@ -133,6 +133,7 @@
     <div id="player-wrap" class="player-wrap">
       <div id="player"></div>
       <img id="audio-cover" class="audio-cover hidden" alt="Podcast cover">
+      <div id="audio-loading" class="audio-loading hidden" aria-live="polite"></div>
       <div id="player-placeholder" class="player-placeholder">
         <p>No video loaded</p>
         <div class="url-row">
@@ -327,6 +328,7 @@
     <img id="modal-thumb" class="modal-thumb hidden" alt="Video thumbnail">
     <div class="field"><label for="seg-note">Line</label><textarea id="seg-note" rows="2" placeholder="Type the line you're shadowing — shown as the clip's title"></textarea></div>
     <div class="field"><label for="seg-label">Name <span class="dim">(optional)</span></label><input id="seg-label" maxlength="120" autocomplete="off"></div>
+    <div class="field"><label for="seg-image">Cover image URL <span class="dim">(optional)</span></label><input id="seg-image" type="url" maxlength="500" autocomplete="off" placeholder="Paste an image link to show as the clip's cover"></div>
     <div class="field"><label for="seg-folder">Folder</label><select id="seg-folder"></select></div>
     <div class="field hidden" id="new-folder-field"><label for="seg-folder-new">New folder name</label><input id="seg-folder-new" maxlength="60" autocomplete="off" placeholder="e.g. Interview, Medical, Linking"></div>
     <div class="modal-actions">
