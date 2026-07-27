@@ -123,7 +123,8 @@ let logs     = lsLoad(LS.log, []);
 let settings = Object.assign(
   { dailyGoal: 10, streakFreezes: 0, defaultSpeed: 1, defaultLen: 2, folders: [],
     lastFolder: '', syncUrl: '', lastSyncAt: 0, lastExportAt: 0, micEnabled: false, name: 'Eric',
-    tombstones: {} },   // { [segId]: deletedAt } — so a delete survives the cloud merge
+    tombstones: {},     // { [segId]: deletedAt } — so a delete survives the cloud merge
+    resetAt: 0 },       // timestamp of the last "zero all reps & practice map" — newest wins
   lsLoad(LS.set, {})
 );
 // migrate older segments: ensure folder + len + spaced-repetition fields
@@ -1529,6 +1530,8 @@ function resetAllProgress(){
   if (!confirm('Zero all reps and clear the practice map + streak?\n\nYour clips, folders and review schedule stay. This can\'t be undone.')) return;
   segments.forEach(s => { s.reps = 0; });
   logs = [];
+  settings.resetAt = Date.now();   // mark the reset so the cloud merge honors it
+  saveSettings();
   saveSegments();
   saveLogs();
   renderSegmentList();
@@ -1962,12 +1965,25 @@ function mergeData(obj){
   // a clip stays deleted unless it was practiced *after* the deletion (resurrect)
   const isDeleted = s => tomb[s.id] != null && tomb[s.id] >= (s.lastPracticedAt || 0);
 
+  // "zero all reps & practice map" carries a timestamp; the newest reset wins and
+  // its cleared state becomes the baseline, so a stale snapshot can't merge the
+  // old reps/logs back in (the mirror of the delete-tombstone problem).
+  const localReset  = settings.resetAt || 0;
+  const remoteReset = (obj.settings && obj.settings.resetAt) || 0;
+  if (remoteReset > localReset){        // the other device reset more recently — adopt it
+    logs = [];
+    segments.forEach(s => { s.reps = 0; });
+  }
+  settings.resetAt = Math.max(localReset, remoteReset);
+  const remotePreReset = remoteReset < settings.resetAt;   // remote predates the winning reset
+
   // segments: same id -> keep the one with newer lastPracticedAt
   const byId = new Map(segments.map(s => [s.id, s]));
   let added = 0, updated = 0;
   obj.segments.forEach(inc => {
     if (!inc || !inc.id) return;
     migrateSegment(inc);
+    if (remotePreReset) inc.reps = 0;   // a pre-reset snapshot must not restore rep counts
     if (isDeleted(inc)) return;   // don't re-add a clip that's been deleted
     const cur = byId.get(inc.id);
     if (!cur){ byId.set(inc.id, inc); added++; }
@@ -1981,15 +1997,19 @@ function mergeData(obj){
   const cutoff = Date.now() - 90 * 86400000;
   for (const id in tomb){ if (tomb[id] < cutoff) delete tomb[id]; }
 
-  // logs: same (date, segmentId) -> take the larger value
+  // logs: same (date, segmentId) -> take the larger value.
+  // Skip the remote's logs entirely when it predates our reset — they're the
+  // pre-reset practice map we just cleared.
   const logKey = l => l.date + '|' + l.segmentId;
   const logMap = new Map(logs.map(l => [logKey(l), l]));
-  obj.logs.forEach(inc => {
-    if (!inc || !inc.date || !inc.segmentId) return;
-    const cur = logMap.get(logKey(inc));
-    if (!cur) logMap.set(logKey(inc), inc);
-    else cur.reps = Math.max(cur.reps, inc.reps);
-  });
+  if (!remotePreReset){
+    obj.logs.forEach(inc => {
+      if (!inc || !inc.date || !inc.segmentId) return;
+      const cur = logMap.get(logKey(inc));
+      if (!cur) logMap.set(logKey(inc), inc);
+      else cur.reps = Math.max(cur.reps, inc.reps);
+    });
+  }
   logs = [...logMap.values()];
 
   // merge folder lists (local first, then imported)
