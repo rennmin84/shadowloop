@@ -270,6 +270,22 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .btn-group{display:flex; gap:8px;}
 #sync-url{width:100%; font-size:13px;}
 .sync-status{margin:-6px 2px 0;}
+.danger-row{margin-top:4px;}
+.btn.danger{color:var(--danger); border-color:var(--danger);}
+.btn.danger:hover{background:var(--danger); color:#fff;}
+
+/* keyboard shortcuts reference (Settings) */
+.kbd-card{display:flex; flex-direction:column; gap:10px;}
+.kbd-row{display:flex; align-items:center; gap:14px;}
+.kbd-keys{flex:0 0 auto; min-width:140px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
+.kbd-desc{font-size:14px;}
+kbd{display:inline-block; padding:2px 7px; font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--text); background:var(--surface2); border:1px solid var(--border);
+  border-bottom-width:2px; border-radius:6px; white-space:nowrap;}
+@media (max-width:560px){
+  .kbd-keys{min-width:118px;}
+  .kbd-desc{font-size:13px;}
+}
 .export-reminder{margin:2px 2px 0; color:var(--text2);}
 .export-reminder.warn{color:var(--danger); font-weight:600;}
 
@@ -487,7 +503,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent); box-shadow:0
 .queue-exit{color:var(--text2);}
 
 /* transport: fast jumps through the video */
-.transport-row{display:flex; align-items:center; gap:10px;}
+.transport-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
 .transport-hint{flex:1; text-align:center; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .skip-btn{min-width:74px; font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;}
 

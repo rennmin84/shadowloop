@@ -154,7 +154,6 @@
 
     <div class="transport-row">
       <button id="skip-back" class="btn skip-btn" title="Move the start back 1s (A) — hold to keep stepping">« 1s</button>
-      <p class="dim small transport-hint">A / D move the start · J / L move the end · Space replays · S plays/pauses</p>
       <button id="skip-fwd" class="btn skip-btn" title="Move the start forward 1s (D) — hold to keep stepping">1s »</button>
     </div>
 
@@ -270,6 +269,23 @@
     </div>
     <p id="export-reminder" class="small export-reminder hidden"></p>
     <p class="dim small">Data lives in this browser. Turn on cloud sync to share it across your computer and phone, or use JSON backup for a one-off transfer.</p>
+    <div class="setting-row danger-row">
+      <label>Reset progress</label>
+      <button id="reset-all-reps" class="btn danger">Zero all reps &amp; practice map</button>
+    </div>
+    <p class="dim small">Sets every clip's rep count to 0 and clears the daily practice map and streak. Your clips, folders and review schedule stay. This can't be undone — export a backup first if unsure.</p>
+  </section>
+
+  <!-- ============ Keyboard shortcuts ============ -->
+  <p class="eyebrow" style="margin-top:26px;">Keyboard shortcuts <span class="dim">(Studio, desktop)</span></p>
+  <section class="card kbd-card">
+    <div class="kbd-row"><span class="kbd-keys"><kbd>S</kbd></span><span class="kbd-desc">Play / pause</span></div>
+    <div class="kbd-row"><span class="kbd-keys"><kbd>Space</kbd> <kbd>R</kbd> <kbd>Enter</kbd></span><span class="kbd-desc">Replay the clip</span></div>
+    <div class="kbd-row"><span class="kbd-keys"><kbd>A</kbd> <kbd>D</kbd></span><span class="kbd-desc">Move start earlier / later (<kbd>Shift</kbd> = 10s)</span></div>
+    <div class="kbd-row"><span class="kbd-keys"><kbd>←</kbd> <kbd>→</kbd></span><span class="kbd-desc">Fine-tune the start</span></div>
+    <div class="kbd-row"><span class="kbd-keys"><kbd>J</kbd> <kbd>L</kbd></span><span class="kbd-desc">Shrink / grow the clip length</span></div>
+    <div class="kbd-row"><span class="kbd-keys"><kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd></span><span class="kbd-desc">Open Save (press again to save)</span></div>
+    <p class="dim small">Shortcuts use the physical key, so they work even with a Chinese input method on.</p>
   </section>
 
   <!-- ============ Sources / help ============ -->

@@ -1521,6 +1521,21 @@ function resetSegmentReps(id){
   toast('Reps reset to 0');
 }
 
+/* zero every clip's reps and wipe the practice map (logs -> heatmap + streak).
+   Clips, folders and the SRS schedule are kept. No undo. */
+function resetAllProgress(){
+  const totalReps = segments.reduce((n, s) => n + (s.reps || 0), 0);
+  if (!totalReps && !logs.length){ toast('Nothing to reset'); return; }
+  if (!confirm('Zero all reps and clear the practice map + streak?\n\nYour clips, folders and review schedule stay. This can\'t be undone.')) return;
+  segments.forEach(s => { s.reps = 0; });
+  logs = [];
+  saveSegments();
+  saveLogs();
+  renderSegmentList();
+  renderDashboard();
+  toast('Reps and practice map reset');
+}
+
 let folderMenuEl = null;
 function closeFolderMenu(){
   if (!folderMenuEl) return;
@@ -2308,6 +2323,8 @@ $('#sync-url').addEventListener('change', () => {
   if (settings.syncUrl) syncNow(false);
 });
 $('#sync-now').addEventListener('click', () => syncNow(false));
+
+$('#reset-all-reps').addEventListener('click', resetAllProgress);
 
 $('#export-btn').addEventListener('click', exportData);
 $('#import-btn').addEventListener('click', () => $('#import-file').click());
