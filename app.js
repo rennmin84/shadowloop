@@ -122,7 +122,8 @@ let segments = lsLoad(LS.seg, []);
 let logs     = lsLoad(LS.log, []);
 let settings = Object.assign(
   { dailyGoal: 10, streakFreezes: 0, defaultSpeed: 1, defaultLen: 2, folders: [],
-    lastFolder: '', syncUrl: '', lastSyncAt: 0, lastExportAt: 0, micEnabled: false, name: 'Eric' },
+    lastFolder: '', syncUrl: '', lastSyncAt: 0, lastExportAt: 0, micEnabled: false, name: 'Eric',
+    tombstones: {} },   // { [segId]: deletedAt } — so a delete survives the cloud merge
   lsLoad(LS.set, {})
 );
 // migrate older segments: ensure folder + len + spaced-repetition fields
@@ -1391,9 +1392,12 @@ function deleteSegment(id){
   if (!seg) return;
   if (!confirm('Delete “' + seg.label + '”? Your practice stats stay intact.')) return;
   segments = segments.filter(s => s.id !== id);
+  if (!settings.tombstones) settings.tombstones = {};
+  settings.tombstones[id] = Date.now();   // remember the delete so the cloud merge honors it
   if (state.currentSegmentId === id) state.currentSegmentId = null;
   idbDelTake(id).catch(() => {});
   saveSegments();
+  saveSettings();
   renderDashboard();
   renderSegmentList();
   toast('Deleted');
@@ -1909,17 +1913,36 @@ function importData(obj){
 
 /* merge another snapshot (import file or cloud copy) into local data */
 function mergeData(obj){
+  // tombstones (deletions) merge first, newest deletedAt wins, so a delete on
+  // any device propagates instead of the other device's copy resurrecting it.
+  const tomb = settings.tombstones || (settings.tombstones = {});
+  if (obj.settings && obj.settings.tombstones){
+    for (const id in obj.settings.tombstones){
+      const t = obj.settings.tombstones[id];
+      if (t > (tomb[id] || 0)) tomb[id] = t;
+    }
+  }
+  // a clip stays deleted unless it was practiced *after* the deletion (resurrect)
+  const isDeleted = s => tomb[s.id] != null && tomb[s.id] >= (s.lastPracticedAt || 0);
+
   // segments: same id -> keep the one with newer lastPracticedAt
   const byId = new Map(segments.map(s => [s.id, s]));
   let added = 0, updated = 0;
   obj.segments.forEach(inc => {
     if (!inc || !inc.id) return;
     migrateSegment(inc);
+    if (isDeleted(inc)) return;   // don't re-add a clip that's been deleted
     const cur = byId.get(inc.id);
     if (!cur){ byId.set(inc.id, inc); added++; }
     else if ((inc.lastPracticedAt || 0) > (cur.lastPracticedAt || 0)){ byId.set(inc.id, inc); updated++; }
   });
+  // propagate deletions to local copies too (deleted on another device)
+  for (const [id, s] of byId){ if (isDeleted(s)) byId.delete(id); }
   segments = [...byId.values()];
+
+  // forget tombstones after 90 days so the map can't grow forever
+  const cutoff = Date.now() - 90 * 86400000;
+  for (const id in tomb){ if (tomb[id] < cutoff) delete tomb[id]; }
 
   // logs: same (date, segmentId) -> take the larger value
   const logKey = l => l.date + '|' + l.segmentId;
