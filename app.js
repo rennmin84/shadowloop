@@ -1671,55 +1671,77 @@ function renderSegmentList(){
 }
 
 /* ---------------- daily spark ----------------
-   One quote per day, picked deterministically from the date so it
-   stays the same all day and changes tomorrow. */
+   One quote per day, deterministic from the date so it stays the same all day.
+   Each quote is tagged with a theme (c): 'motiv' (motivational), 'prod'
+   (productivity/habits), 'lang' (language learning). We cycle the theme by day
+   so consecutive days alternate themes — language quotes only come round every
+   third day instead of dominating. */
 const QUOTES = [
-  { t: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.', a: 'Will Durant' },
-  { t: 'Repetition is the mother of learning.', a: 'Russian proverb' },
-  { t: 'Little by little, a little becomes a lot.', a: 'Tanzanian proverb' },
-  { t: 'The limits of my language mean the limits of my world.', a: 'Ludwig Wittgenstein' },
-  { t: 'To have another language is to possess a second soul.', a: 'Charlemagne' },
-  { t: 'A different language is a different vision of life.', a: 'Federico Fellini' },
-  { t: 'Success is the sum of small efforts, repeated day in and day out.', a: 'Robert Collier' },
-  { t: "You don't have to be great to start, but you have to start to be great.", a: 'Zig Ziglar' },
-  { t: 'The expert in anything was once a beginner.', a: 'Helen Hayes' },
-  { t: "Don't watch the clock; do what it does. Keep going.", a: 'Sam Levenson' },
-  { t: "It always seems impossible until it's done.", a: 'Nelson Mandela' },
-  { t: 'Motivation is what gets you started. Habit is what keeps you going.', a: 'Jim Ryun' },
-  { t: 'The secret of getting ahead is getting started.', a: 'Mark Twain' },
-  { t: 'Great things are done by a series of small things brought together.', a: 'Vincent van Gogh' },
-  { t: 'Every artist was first an amateur.', a: 'Ralph Waldo Emerson' },
-  { t: 'If you talk to a man in a language he understands, that goes to his head. If you talk to him in his language, that goes to his heart.', a: 'Nelson Mandela' },
-  { t: 'Learning another language is not only learning different words for the same things, but learning another way to think about things.', a: 'Flora Lewis' },
-  { t: 'One language sets you in a corridor for life. Two languages open every door along the way.', a: 'Frank Smith' },
-  { t: 'Language is the road map of a culture.', a: 'Rita Mae Brown' },
-  { t: 'Do something today that your future self will thank you for.', a: 'Sean Patrick Flanery' },
-  { t: 'You are always a student, never a master. You have to keep moving forward.', a: 'Conrad Hall' },
-  { t: 'Practice like you have never won. Perform like you have never lost.', a: 'Bernard F. Asuncion' },
-  { t: 'Knowledge of languages is the doorway to wisdom.', a: 'Roger Bacon' },
-  { t: 'He who knows no foreign languages knows nothing of his own.', a: 'Johann Wolfgang von Goethe' },
-  { t: 'The more languages you know, the more you are human.', a: 'Tomáš Garrigue Masaryk' },
-  { t: 'Language is the blood of the soul into which thoughts run and out of which they grow.', a: 'Oliver Wendell Holmes' },
-  { t: 'You can never understand one language until you understand at least two.', a: 'Geoffrey Willans' },
-  { t: 'A new language is a new life.', a: 'Persian proverb' },
-  { t: 'Practice is the hardest part of learning, and training is the essence of transformation.', a: 'Ann Voskamp' },
-  { t: 'Small daily improvements over time lead to stunning results.', a: 'Robin Sharma' },
-  { t: 'It does not matter how slowly you go as long as you do not stop.', a: 'Confucius' },
-  { t: 'Quality is not an act, it is a habit.', a: 'Aristotle' },
-  { t: 'We first make our habits, and then our habits make us.', a: 'John Dryden' },
-  { t: 'Perfection is not attainable, but if we chase perfection we can catch excellence.', a: 'Vince Lombardi' },
-  { t: 'The way to get started is to quit talking and begin doing.', a: 'Walt Disney' },
-  { t: 'Continuous improvement is better than delayed perfection.', a: 'Mark Twain' },
-  { t: 'Fluency is not about knowing every word, but about not being afraid to speak.', a: 'Anonymous' },
-  { t: 'A little progress each day adds up to big results.', a: 'Satya Nani' },
-  { t: 'Courage is the most important of all the virtues, because without courage you can\'t practice any other virtue consistently.', a: 'Maya Angelou' },
-  { t: 'The only way to learn to speak is to speak.', a: 'Anonymous' },
+  // --- motivational ---
+  { c: 'motiv', t: "You don't have to be great to start, but you have to start to be great.", a: 'Zig Ziglar' },
+  { c: 'motiv', t: 'The expert in anything was once a beginner.', a: 'Helen Hayes' },
+  { c: 'motiv', t: "Don't watch the clock; do what it does. Keep going.", a: 'Sam Levenson' },
+  { c: 'motiv', t: "It always seems impossible until it's done.", a: 'Nelson Mandela' },
+  { c: 'motiv', t: 'Every artist was first an amateur.', a: 'Ralph Waldo Emerson' },
+  { c: 'motiv', t: 'Do something today that your future self will thank you for.', a: 'Sean Patrick Flanery' },
+  { c: 'motiv', t: 'You are always a student, never a master. You have to keep moving forward.', a: 'Conrad Hall' },
+  { c: 'motiv', t: 'Practice like you have never won. Perform like you have never lost.', a: 'Bernard F. Asuncion' },
+  { c: 'motiv', t: 'It does not matter how slowly you go as long as you do not stop.', a: 'Confucius' },
+  { c: 'motiv', t: 'Perfection is not attainable, but if we chase perfection we can catch excellence.', a: 'Vince Lombardi' },
+  { c: 'motiv', t: 'Courage is the most important of all the virtues, because without courage you can\'t practice any other virtue consistently.', a: 'Maya Angelou' },
+  { c: 'motiv', t: 'Fall seven times, stand up eight.', a: 'Japanese proverb' },
+  { c: 'motiv', t: 'The best time to plant a tree was 20 years ago. The second best time is now.', a: 'Chinese proverb' },
+  { c: 'motiv', t: "Whether you think you can or you think you can't, you're right.", a: 'Henry Ford' },
+  { c: 'motiv', t: 'Start where you are. Use what you have. Do what you can.', a: 'Arthur Ashe' },
+
+  // --- productivity / habits ---
+  { c: 'prod', t: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.', a: 'Will Durant' },
+  { c: 'prod', t: 'Repetition is the mother of learning.', a: 'Russian proverb' },
+  { c: 'prod', t: 'Little by little, a little becomes a lot.', a: 'Tanzanian proverb' },
+  { c: 'prod', t: 'Success is the sum of small efforts, repeated day in and day out.', a: 'Robert Collier' },
+  { c: 'prod', t: 'Motivation is what gets you started. Habit is what keeps you going.', a: 'Jim Ryun' },
+  { c: 'prod', t: 'The secret of getting ahead is getting started.', a: 'Mark Twain' },
+  { c: 'prod', t: 'Great things are done by a series of small things brought together.', a: 'Vincent van Gogh' },
+  { c: 'prod', t: 'Practice is the hardest part of learning, and training is the essence of transformation.', a: 'Ann Voskamp' },
+  { c: 'prod', t: 'Small daily improvements over time lead to stunning results.', a: 'Robin Sharma' },
+  { c: 'prod', t: 'Quality is not an act, it is a habit.', a: 'Aristotle' },
+  { c: 'prod', t: 'We first make our habits, and then our habits make us.', a: 'John Dryden' },
+  { c: 'prod', t: 'The way to get started is to quit talking and begin doing.', a: 'Walt Disney' },
+  { c: 'prod', t: 'Continuous improvement is better than delayed perfection.', a: 'Mark Twain' },
+  { c: 'prod', t: 'A little progress each day adds up to big results.', a: 'Satya Nani' },
+  { c: 'prod', t: 'Focus on being productive instead of busy.', a: 'Tim Ferriss' },
+  { c: 'prod', t: 'Done is better than perfect.', a: 'Sheryl Sandberg' },
+  { c: 'prod', t: 'Amateurs sit and wait for inspiration; the rest of us just get up and go to work.', a: 'Stephen King' },
+  { c: 'prod', t: 'What gets measured gets managed.', a: 'Peter Drucker' },
+  { c: 'prod', t: 'You will never find time for anything. If you want time, you must make it.', a: 'Charles Buxton' },
+
+  // --- language learning ---
+  { c: 'lang', t: 'The limits of my language mean the limits of my world.', a: 'Ludwig Wittgenstein' },
+  { c: 'lang', t: 'To have another language is to possess a second soul.', a: 'Charlemagne' },
+  { c: 'lang', t: 'A different language is a different vision of life.', a: 'Federico Fellini' },
+  { c: 'lang', t: 'If you talk to a man in a language he understands, that goes to his head. If you talk to him in his language, that goes to his heart.', a: 'Nelson Mandela' },
+  { c: 'lang', t: 'Learning another language is not only learning different words for the same things, but learning another way to think about things.', a: 'Flora Lewis' },
+  { c: 'lang', t: 'One language sets you in a corridor for life. Two languages open every door along the way.', a: 'Frank Smith' },
+  { c: 'lang', t: 'Language is the road map of a culture.', a: 'Rita Mae Brown' },
+  { c: 'lang', t: 'Knowledge of languages is the doorway to wisdom.', a: 'Roger Bacon' },
+  { c: 'lang', t: 'He who knows no foreign languages knows nothing of his own.', a: 'Johann Wolfgang von Goethe' },
+  { c: 'lang', t: 'The more languages you know, the more you are human.', a: 'Tomáš Garrigue Masaryk' },
+  { c: 'lang', t: 'Language is the blood of the soul into which thoughts run and out of which they grow.', a: 'Oliver Wendell Holmes' },
+  { c: 'lang', t: 'You can never understand one language until you understand at least two.', a: 'Geoffrey Willans' },
+  { c: 'lang', t: 'A new language is a new life.', a: 'Persian proverb' },
+  { c: 'lang', t: 'Fluency is not about knowing every word, but about not being afraid to speak.', a: 'Anonymous' },
+  { c: 'lang', t: 'The only way to learn to speak is to speak.', a: 'Anonymous' },
 ];
+const QUOTE_THEMES = ['motiv', 'prod', 'lang'];   // the daily rotation order
 function renderQuote(){
   const s = todayStr();
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  const q = QUOTES[h % QUOTES.length];
+  // day counter drives the theme so it cycles motiv → prod → lang → …
+  const dayIndex = Math.floor(Date.parse(s) / 86400000);
+  const theme = QUOTE_THEMES[((dayIndex % QUOTE_THEMES.length) + QUOTE_THEMES.length) % QUOTE_THEMES.length];
+  const pool = QUOTES.filter(q => q.c === theme);
+  const q = pool[h % pool.length];
   const txt = $('#quote-text');
   txt.textContent = q.t;
   txt.classList.toggle('long', q.t.length > 90);
